@@ -10,10 +10,23 @@ defmodule Stow.Http.Client do
   @type headers :: Plug.Conn.headers()
   @type status :: Plug.Conn.status()
 
+  @type request_url :: iodata()
   @type response :: {:ok, {status(), headers(), body()}} | {:error, term()}
 
   @doc """
   Dispatches HTTP request based on `t:Plug.Conn.t/0`.
   """
   @callback dispatch(conn(), client_options()) :: response()
+
+  @spec build_req_url(conn()) :: request_url()
+  def build_req_url(conn) do
+    [
+      "#{conn.scheme}://",
+      conn.host,
+      ":",
+      "#{conn.port}",
+      conn.request_path,
+      if(conn.query_string == "", do: "", else: "?#{conn.query_string}")
+    ]
+  end
 end

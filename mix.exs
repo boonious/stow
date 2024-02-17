@@ -22,13 +22,16 @@ defmodule Stow.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :inets, :public_key, :crypto]
     ]
   end
 
   defp deps do
     [
+      {:plug, "~> 1.15"},
+
       # for tests
+      {:bypass, "~> 2.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:hammox, "~> 0.7", only: :test}

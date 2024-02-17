@@ -36,8 +36,7 @@ defmodule Stow.Sinks.FileSink do
   defp maybe_create_dir(dir), do: if(@file_io.exists?(dir), do: :ok, else: @file_io.mkdir_p(dir))
 
   defp write_file(path, data, opts) do
-    file_io = Keyword.get(opts, :file_io, @file_io)
-    file_io.write(path, data, Keyword.get(opts, :mode, []))
+    Keyword.get(opts, :file_io, @file_io).write(path, data, Keyword.get(opts, :mode, []))
   end
 
   @doc """
