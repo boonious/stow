@@ -6,6 +6,8 @@ defmodule Stow.Sinks.FileSinkTest do
   alias Stow.FileIO
   alias Stow.Sinks.FileSink
 
+  setup :verify_on_exit!
+
   setup do
     FileIO.Mock |> stub(:exists?, fn _file_dir -> true end)
 
