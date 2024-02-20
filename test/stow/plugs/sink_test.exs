@@ -4,8 +4,10 @@ defmodule Stow.Plugs.SinkTest do
 
   import Hammox
 
+  alias Plug.Conn
   alias Stow.FileIO.Mock, as: FileIO
   alias Stow.Plugs.Sink
+  alias Stow.Sink, as: SinkStruct
 
   defmodule FileSinkTestPlug do
     use Plug.Builder
@@ -17,45 +19,78 @@ defmodule Stow.Plugs.SinkTest do
   describe "file sink" do
     setup do
       FileIO |> stub(:exists?, fn _dir -> true end)
-      %{path: "/path/to/file", data: "test data"}
+      %{conn: conn(:get, "/test"), path: "/path/to/file", data: "test data"}
     end
 
-    test "via compiled plug opts", %{path: path, data: data} do
-      conn = conn(:get, "/test")
+    test "via compiled plug opts", %{conn: conn, path: path, data: data} do
       dir = Path.dirname(path)
+      uri = "file:#{path}"
 
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
-      # need to assert/set conn private per file sink outcome later
-      # create a file sink struct
-      __MODULE__.FileSinkTestPlug.call(conn, [])
+      assert %Conn{} = conn = __MODULE__.FileSinkTestPlug.call(conn, [])
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
     end
 
-    test "via runtime plug opts" do
-      conn = conn(:get, "/test")
+    test "via runtime plug opts", %{conn: conn} do
       {path, data} = {"/another/path/file", "others"}
       dir = Path.dirname(path)
+      uri = "file:#{path}"
 
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
-      # need to assert/set conn private per file sink outcome later
-      # create a file sink struct
-      Sink.call(conn, uri: "file:#{path}", data: data)
+      assert %Conn{} = conn = Sink.call(conn, uri: uri, data: data)
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
     end
 
-    test "via connection private params", %{path: path, data: data} do
-      conn = conn(:get, "/test_conn")
+    test "via connection private params", %{conn: conn, path: path, data: data} do
       conn = resp(conn, 200, data)
-      conn = put_private(conn, :stow, %{file_sink: %{uri: "file:#{path}"}})
+      conn = put_private(conn, :stow, %{sink: SinkStruct.new("file:#{path}")})
+      uri = "file:#{path}"
 
-      # need to assert/set conn private per file sink outcome later
-      # create a file sink struct
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
-      Sink.call(conn, [])
+
+      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
     end
 
-    # unhappy paths tests later
+    test "error status on malformed file uri", %{conn: conn, data: data} do
+      FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
+      assert %Conn{} = conn = Sink.call(conn, uri: "uri_without_scheme", data: "")
+      assert %SinkStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.sink
+
+      conn = resp(conn, 200, data)
+      conn = put_private(conn, :stow, %{sink: SinkStruct.new("uri_without_scheme")})
+      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %SinkStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.sink
+    end
+
+    test "error status when no file uri available", %{conn: conn, data: data} do
+      FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
+
+      conn = resp(conn, 200, data)
+      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %SinkStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.sink
+    end
+
+    test "error status without data option and respond body", %{conn: conn, path: path} do
+      FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
+      uri = "file:#{path}"
+
+      assert %Conn{} = conn = Sink.call(conn, uri: uri)
+      assert %SinkStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.sink
+    end
+
+    test "error status when respond body invalid", %{conn: conn, path: path} do
+      FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
+      uri = "file:#{path}"
+
+      conn = resp(conn, 500, "Internal Server Error")
+      conn = put_private(conn, :stow, %{sink: SinkStruct.new(uri)})
+      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %SinkStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.sink
+    end
   end
 end
