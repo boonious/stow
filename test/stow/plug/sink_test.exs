@@ -1,12 +1,12 @@
-defmodule Stow.Plugs.SinkTest do
+defmodule Stow.Plug.SinkTest do
   use ExUnit.Case, async: true
   use Plug.Test
 
   import Hammox
 
   alias Plug.Conn
-  alias Stow.FileIO.Mock, as: FileIO
-  alias Stow.Plugs.Sink
+  alias Stow.FileIOMock, as: FileIO
+  alias Stow.Plug.Sink
   alias Stow.Sink, as: SinkStruct
 
   defmodule FileSinkTestPlug do

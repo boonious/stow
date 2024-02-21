@@ -1,9 +1,9 @@
-defmodule Stow.Http.Clients.HttpcTest do
+defmodule Stow.Http.Client.HttpcTest do
   use ExUnit.Case, async: true
 
   import Stow.Http.Client, only: [build_req_url: 1]
   alias Plug.Conn
-  alias Stow.Http.Clients.Httpc
+  alias Stow.Http.Client.Httpc
 
   setup do
     bypass = Bypass.open()

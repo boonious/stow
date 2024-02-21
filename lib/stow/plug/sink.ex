@@ -1,21 +1,21 @@
-defmodule Stow.Plugs.Sink do
+defmodule Stow.Plug.Sink do
   @moduledoc false
   @behaviour Plug
 
   alias Plug.Conn
   alias Stow.Sink
-  alias Stow.Sinks
+  alias Stow.Plug.Utils
 
   import Plug.Conn, only: [put_private: 3]
 
-  @supported_schemes ["file"]
+  @schemes ["file"]
 
   @impl true
   def init(opts), do: Keyword.validate!(opts, [:uri, :data])
 
   @impl true
   def call(conn, opts) do
-    with {:ok, uri, conn} <- fetch_uri(conn, Keyword.get(opts, :uri)),
+    with {:ok, uri, conn} <- fetch_uri(conn, opts),
          {:ok, data} <- fetch_data(conn, Keyword.get(opts, :data)),
          {:ok, _uri, conn} <- put_data(conn, uri, data) do
       conn
@@ -24,26 +24,7 @@ defmodule Stow.Plugs.Sink do
     end
   end
 
-  # opt1: uri from plug opts
-  defp fetch_uri(conn, uri) when is_binary(uri) do
-    URI.new(uri)
-    |> check_scheme()
-    |> update_conn(conn)
-  end
-
-  # opt2: uri from conn private
-  defp fetch_uri(conn, nil) do
-    conn.private[:stow][:sink]
-    |> priv_uri()
-    |> check_scheme()
-    |> update_conn(conn)
-  end
-
-  defp check_scheme({:ok, %URI{scheme: s} = uri}) when s in @supported_schemes, do: {:ok, uri}
-  defp check_scheme(_), do: {:error, :einval}
-
-  defp priv_uri(%Sink{uri: uri, status: nil}) when is_binary(uri), do: URI.new(uri)
-  defp priv_uri(_), do: {:error, :einval}
+  defp fetch_uri(conn, opts), do: Utils.fetch_uri(conn, opts, @schemes) |> update_conn(conn)
 
   # opt1: data from plug opts
   defp fetch_data(_conn, data) when is_binary(data) or is_list(data), do: {:ok, data}
@@ -61,7 +42,7 @@ defmodule Stow.Plugs.Sink do
   defp put_data(conn, uri, data) do
     (uri.scheme <> "_sink")
     |> Macro.camelize()
-    |> then(fn sink -> Module.concat(Sinks, sink) end)
+    |> then(fn sink -> Module.concat(Sink, sink) end)
     |> apply(:put, [uri, data, []])
     |> update_conn(conn, :ok)
   end

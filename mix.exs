@@ -12,7 +12,11 @@ defmodule Stow.MixProject do
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      preferred_cli_env: [ci: :test],
+      aliases: [
+        ci: ["format", "credo", "dialyzer", "test"]
+      ]
     ]
   end
 

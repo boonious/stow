@@ -1,4 +1,4 @@
-defmodule Stow.Http.Clients.Httpc do
+defmodule Stow.Http.Client.Httpc do
   @moduledoc false
   @behaviour Stow.Http.Client
 

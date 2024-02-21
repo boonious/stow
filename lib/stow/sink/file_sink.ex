@@ -1,4 +1,4 @@
-defmodule Stow.Sinks.FileSink do
+defmodule Stow.Sink.FileSink do
   defmodule MalformedURIError do
     defexception message: "invalid file uri"
 
@@ -20,7 +20,7 @@ defmodule Stow.Sinks.FileSink do
   ```
     "file:/path/to/file.gz"
     |> URI.new!()
-    |> Stow.Sinks.FileSink.put("hello word", [:compressed])
+    |> Stow.Sink.FileSink.put("hello word", [:compressed])
   ```
   """
   @impl true
@@ -46,7 +46,7 @@ defmodule Stow.Sinks.FileSink do
   ```
     "file:/path/to/file.gz"
     |> URI.new!()
-    |> Stow.Sinks.FileSink.delete()
+    |> Stow.Sink.FileSink.delete()
   ```
   """
   @impl true

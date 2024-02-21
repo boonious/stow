@@ -1,15 +1,15 @@
-defmodule Stow.Sinks.FileSinkTest do
+defmodule Stow.Sink.FileSinkTest do
   use ExUnit.Case, async: true
 
   import Hammox
 
-  alias Stow.FileIO
-  alias Stow.Sinks.FileSink
+  alias Stow.FileIOMock, as: FileIO
+  alias Stow.Sink.FileSink
 
   setup :verify_on_exit!
 
   setup do
-    FileIO.Mock |> stub(:exists?, fn _file_dir -> true end)
+    FileIO |> stub(:exists?, fn _file_dir -> true end)
 
     %{
       data: %{"binary" => "hi james", "io_list" => ["hi", 74, 97, 109, 101, 115]},
@@ -23,7 +23,7 @@ defmodule Stow.Sinks.FileSinkTest do
       path = uri.path
       opts = []
 
-      FileIO.Mock |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
+      FileIO |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
       assert {:ok, ^uri} = FileSink.put(uri, data, opts)
     end
 
@@ -32,7 +32,7 @@ defmodule Stow.Sinks.FileSinkTest do
       path = uri.path
       opts = []
 
-      FileIO.Mock |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
+      FileIO |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
       FileSink.put(uri, data, opts)
     end
 
@@ -42,9 +42,9 @@ defmodule Stow.Sinks.FileSinkTest do
       dir = uri.path |> Path.dirname()
       opts = []
 
-      FileIO.Mock |> expect(:exists?, fn ^dir -> false end)
-      FileIO.Mock |> expect(:mkdir_p, fn ^dir -> :ok end)
-      FileIO.Mock |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
+      FileIO |> expect(:exists?, fn ^dir -> false end)
+      FileIO |> expect(:mkdir_p, fn ^dir -> :ok end)
+      FileIO |> expect(:write, fn ^path, ^data, ^opts -> :ok end)
 
       FileSink.put(uri, data, opts)
     end
@@ -76,7 +76,7 @@ defmodule Stow.Sinks.FileSinkTest do
   describe "delete/1" do
     test "existing file", %{file_uri: uri} do
       path = uri.path
-      FileIO.Mock |> expect(:rm, fn ^path -> :ok end)
+      FileIO |> expect(:rm, fn ^path -> :ok end)
       assert {:ok, ^uri} = FileSink.delete(uri)
     end
 
@@ -84,7 +84,7 @@ defmodule Stow.Sinks.FileSinkTest do
       path = uri.path
 
       # file does not exist
-      FileIO.Mock |> expect(:rm, fn ^path -> {:error, :enoent} end)
+      FileIO |> expect(:rm, fn ^path -> {:error, :enoent} end)
       assert {:error, :enoent} = FileSink.delete(uri)
     end
   end

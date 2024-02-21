@@ -18,6 +18,7 @@ defmodule Stow.Http.Client do
   """
   @callback dispatch(conn(), client_options()) :: response()
 
+  @doc false
   @spec build_req_url(conn()) :: request_url()
   def build_req_url(conn) do
     [
@@ -29,4 +30,8 @@ defmodule Stow.Http.Client do
       if(conn.query_string == "", do: "", else: "?#{conn.query_string}")
     ]
   end
+
+  @doc false
+  @spec impl() :: module()
+  def impl(), do: Application.get_env(:stow, :http_client, Stow.Http.Client.Httpc)
 end
