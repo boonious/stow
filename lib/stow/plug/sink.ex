@@ -24,7 +24,9 @@ defmodule Stow.Plug.Sink do
     end
   end
 
-  defp fetch_uri(conn, opts), do: Utils.fetch_uri(conn, opts, @schemes) |> update_conn(conn)
+  defp fetch_uri(conn, opts) do
+    Utils.fetch_uri(conn, opts, {:sink, @schemes}) |> update_conn(conn)
+  end
 
   # opt1: data from plug opts
   defp fetch_data(_conn, data) when is_binary(data) or is_list(data), do: {:ok, data}

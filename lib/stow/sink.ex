@@ -6,7 +6,7 @@ defmodule Stow.Sink do
   defstruct [:uri, :status]
 
   @type t :: %__MODULE__{
-          uri: binary() | uri(),
+          uri: binary() | nil,
           status: nil | :ok | {:error, term()}
         }
 

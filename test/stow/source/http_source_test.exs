@@ -23,18 +23,14 @@ defmodule Stow.Source.HttpSourceTest do
 
   describe "get/2" do
     test "http source", %{conn: conn, resp: resp, uri: uri} do
-      %{host: host, path: path, port: port, query: query} = uri
+      %{scheme: scheme, host: host, path: path, port: port, query: query} = uri
 
       HttpClient
-      |> expect(:dispatch, fn %Conn{
-                                scheme: :http,
-                                method: "GET",
-                                host: ^host,
-                                port: ^port,
-                                request_path: ^path,
-                                query_string: ^query
-                              },
-                              [] ->
+      |> expect(:dispatch, fn conn, [] ->
+        assert %Conn{host: ^host, request_path: ^path, port: ^port, query_string: ^query} = conn
+        assert conn.method == "GET"
+        assert conn.scheme |> to_string() == scheme
+
         resp
       end)
 

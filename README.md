@@ -1,6 +1,6 @@
 # Stow
 
-Composable data pipeline with middleware and adapters support.
+Composable ETL data plugs and pipelines that fit various process architectures.
 
 ## Installation
 

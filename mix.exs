@@ -2,7 +2,7 @@ defmodule Stow.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @description "Composable data pipeline with middleware and adapters support."
+  @description "Composable ETL data plugs and pipelines that fit various process architectures."
 
   def project do
     [
