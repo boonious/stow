@@ -1,5 +1,6 @@
 defmodule Stow.Http.Client.HttpcTest do
   use ExUnit.Case, async: true
+  import ExUnit.CaptureLog
 
   import Stow.Http.Client, only: [build_req_url: 1]
   alias Plug.Conn
@@ -23,7 +24,7 @@ defmodule Stow.Http.Client.HttpcTest do
   end
 
   describe "dispatch/2 GET" do
-    test "url with request path and query string", %{bypass: bypass, conn: conn, options: opts} do
+    test "url with request path and query string", %{bypass: bypass, conn: conn} do
       Bypass.expect(bypass, fn conn ->
         request_url = build_req_url(conn) |> to_string()
         assert request_url == "http://localhost:#{bypass.port}/request/path?foo=bar"
@@ -32,6 +33,7 @@ defmodule Stow.Http.Client.HttpcTest do
         Plug.Conn.resp(conn, 200, "getting a response")
       end)
 
+      opts = []
       assert {:ok, {status, headers, body}} = conn |> Httpc.dispatch(opts)
       assert status == {~c"HTTP/1.1", 200, ~c"OK"}
       assert {~c"server", ~c"Cowboy"} in headers
@@ -67,9 +69,24 @@ defmodule Stow.Http.Client.HttpcTest do
       assert status == {~c"HTTP/1.1", 200, ~c"OK"}
       assert body == ~c"getting a response"
     end
+
+    test "https url with ssl opts", %{conn: conn, options: opts} do
+      conn = %{conn | scheme: :https}
+      # Bypass doesn't support https/ssl, need to find alternative
+      # to complete this test
+      # Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "getting a response") end)
+
+      # emits error atm.
+      capture_log(fn -> conn |> Httpc.dispatch(opts) end)
+    end
+
+    test "with options", %{bypass: bypass, conn: conn, options: opts} do
+      Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "getting a response") end)
+      assert {:ok, _} = conn |> Httpc.dispatch(opts)
+    end
   end
 
-  test "dispatch/2 http methods to be implemented", %{conn: conn} do
+  test "dispatch/2 other http methods yet to be implemented", %{conn: conn} do
     conn = %{conn | method: "DELETE"}
     assert {:error, :not_supported} = conn |> Httpc.dispatch([])
   end

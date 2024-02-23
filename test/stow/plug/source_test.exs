@@ -12,43 +12,76 @@ defmodule Stow.Plug.SourceTest do
 
   defmodule HttpSourceTestPlug do
     use Plug.Builder
-    plug(Source, uri: "http://localhost/path/to/source?foo=bar")
+
+    plug(Source,
+      uri: "http://localhost/path/to/source?foo=bar",
+      req_headers: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
+      resp_headers: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
+    )
   end
 
   setup :verify_on_exit!
 
   describe "http source" do
     setup do
-      header = {"content-type", "text/html; charset=utf-8"}
-      {status, headers, body} = {200, [header], "hi"}
+      {status, headers, body} = {200, [{"content-type", "text/html; charset=utf-8"}], "hi"}
 
       %{
         conn: conn(:get, "/"),
         resp: {:ok, {status, headers, body}},
-        uri: "http://localhost/path/to/source?foo=bar"
+        uri: "http://localhost/path/to/source?foo=bar",
+        req_headers: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
+        resp_headers: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
       }
     end
 
-    test "via compile plug opts", %{conn: conn, resp: resp, uri: uri} do
-      HttpClient |> expect(:dispatch, fn _conn, [] -> resp end)
+    test "via compile plug opts", %{conn: conn, uri: uri} = context do
+      expect(HttpClient, :dispatch, fn conn, [] ->
+        for h <- context.req_headers, do: assert(h in conn.req_headers)
+        context.resp
+      end)
 
       assert %Conn{} = conn = __MODULE__.HttpSourceTestPlug.call(conn, [])
       assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
-    test "via runtime plug opts", %{conn: conn, resp: resp, uri: uri} do
-      HttpClient |> expect(:dispatch, fn _conn, [] -> resp end)
+    test "via runtime plug opts", %{conn: conn, uri: uri} = context do
+      expect(HttpClient, :dispatch, fn conn, [] ->
+        for h <- context.req_headers, do: assert(h in conn.req_headers)
+        context.resp
+      end)
 
-      assert %Conn{} = conn = Source.call(conn, uri: uri)
+      conn =
+        Source.call(conn,
+          uri: uri,
+          req_headers: context.req_headers,
+          resp_headers: context.resp_headers
+        )
+
+      assert %Conn{} = conn
       assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
-    test "via connection private params", %{conn: conn, resp: resp, uri: uri} do
-      HttpClient |> expect(:dispatch, fn _conn, [] -> resp end)
+    test "via connection private params", %{conn: conn, uri: uri} = context do
+      expect(HttpClient, :dispatch, fn conn, [] ->
+        for h <- context.req_headers, do: assert(h in conn.req_headers)
+        context.resp
+      end)
 
-      conn = put_private(conn, :stow, %{source: SourceStruct.new(uri)})
+      conn =
+        put_private(conn, :stow, %{
+          source:
+            SourceStruct.new(uri,
+              req_headers: context.req_headers,
+              resp_headers: context.resp_headers
+            )
+        })
+
       assert %Conn{} = conn = Source.call(conn, [])
       assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
     test "client request uri and query params", %{conn: conn, resp: resp, uri: uri} do

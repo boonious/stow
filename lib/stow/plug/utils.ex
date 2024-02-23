@@ -1,5 +1,7 @@
 defmodule Stow.Plug.Utils do
   @moduledoc false
+
+  alias Plug.Conn
   alias Stow.{Sink, Source}
 
   def fetch_uri(conn, opts, {plug_type, schemes}) when is_list(opts) do
@@ -46,5 +48,11 @@ defmodule Stow.Plug.Utils do
   defp split_path(path) do
     segments = :binary.split(path, "/", [:global])
     for segment <- segments, segment != "", do: segment
+  end
+
+  def put_headers(conn, [], _), do: conn
+
+  def put_headers(conn, [{k, v} | rest], type) when type in [:resp, :req] do
+    apply(Conn, :"put_#{type}_header", [conn, k, v]) |> put_headers(rest, type)
   end
 end
