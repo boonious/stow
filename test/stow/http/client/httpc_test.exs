@@ -35,9 +35,9 @@ defmodule Stow.Http.Client.HttpcTest do
 
       opts = []
       assert {:ok, {status, headers, body}} = conn |> Httpc.dispatch(opts)
-      assert status == {~c"HTTP/1.1", 200, ~c"OK"}
-      assert {~c"server", ~c"Cowboy"} in headers
-      assert body == ~c"getting a response"
+      assert status == 200
+      assert {"server", "Cowboy"} in headers
+      assert body == "getting a response"
     end
 
     test "url without request path and query string ", %{bypass: bypass, conn: conn} do
@@ -51,8 +51,8 @@ defmodule Stow.Http.Client.HttpcTest do
 
       conn = %{conn | query_string: "", request_path: ""}
       assert {:ok, {status, _headers, body}} = conn |> Httpc.dispatch([])
-      assert status == {~c"HTTP/1.1", 200, ~c"OK"}
-      assert body == ~c"getting a response"
+      assert status == 200
+      assert body == "getting a response"
     end
 
     test "url without query string ", %{bypass: bypass, conn: conn} do
@@ -66,8 +66,8 @@ defmodule Stow.Http.Client.HttpcTest do
 
       conn = %{conn | query_string: ""}
       assert {:ok, {status, _headers, body}} = conn |> Httpc.dispatch([])
-      assert status == {~c"HTTP/1.1", 200, ~c"OK"}
-      assert body == ~c"getting a response"
+      assert status == 200
+      assert body == "getting a response"
     end
 
     test "https url with ssl opts", %{conn: conn, options: opts} do

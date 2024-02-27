@@ -5,7 +5,8 @@ defmodule Stow.Plug.Source do
   alias Stow.Plug.Utils
   alias Stow.Source
 
-  import Plug.Conn, only: [halt: 1, put_private: 3, resp: 3]
+  import Plug.Conn, only: [halt: 1, resp: 3]
+  import Utils, only: [update_private: 3]
 
   @plug_opts [:uri, :req_headers, :resp_headers]
   @schemes ["http", "https"]
@@ -34,7 +35,8 @@ defmodule Stow.Plug.Source do
   defdelegate put_headers(conn, headers, type), to: Utils
 
   defp get_req_headers(conn, opts) do
-    private_headers(conn.private[:stow][:source], :req) || Keyword.get(opts, :req_headers, [])
+    get_in(conn.private, [:stow, Access.key!(:source)]) |> private_headers(:req) ||
+      Keyword.get(opts, :req_headers, [])
   end
 
   defp private_headers(nil, _type), do: nil
@@ -56,35 +58,39 @@ defmodule Stow.Plug.Source do
   defp update_conn(resp, conn)
 
   defp update_conn({:ok, %URI{} = uri}, conn) do
+    source = get_in(conn.private, [:stow, Access.key!(:source)])
+
     headers = [
-      req_headers: private_headers(conn.private[:stow][:source], :req) || [],
-      resp_headers: private_headers(conn.private[:stow][:source], :resp) || []
+      req_headers: private_headers(source, :req) || [],
+      resp_headers: private_headers(source, :resp) || []
     ]
 
-    {:ok, uri, put_private(conn, :stow, %{source: Source.new(uri |> to_string(), headers)})}
+    {:ok, uri, update_private(conn, :source, Source.new(uri |> to_string(), headers))}
   end
 
   defp update_conn({:error, reason}, conn) do
-    {:error, put_private(conn, :stow, %{source: Source.failed({:error, reason})}) |> halt()}
+    {:error, update_private(conn, :source, Source.failed({:error, reason})) |> halt()}
   end
 
   defp update_conn({:ok, {200, headers, body}}, conn, uri, resp_headers) do
-    private_headers = private_headers(conn.private[:stow][:source], :resp)
+    private_headers =
+      get_in(conn.private, [:stow, Access.key!(:source)]) |> private_headers(:resp)
+
     opts_headers = private_headers || resp_headers
 
     conn
     |> resp(200, body)
     |> put_headers(headers ++ opts_headers, :resp)
-    |> put_private(:stow, %{source: Source.done(uri |> to_string())})
+    |> update_private(:source, Source.done(uri |> to_string()))
     |> then(fn conn -> {:ok, uri, conn} end)
   end
 
   defp update_conn({:ok, {non_200_status, headers, body}}, conn, uri, opt_headers) do
-    error = {:error, :"#{non_200_status}_status"}
+    error = {:error, :"#{inspect(non_200_status)}_status"}
 
     conn
     |> put_headers(headers ++ opt_headers, :resp)
-    |> put_private(:stow, %{source: Source.failed(error, uri |> to_string())})
+    |> update_private(:source, Source.failed(error, uri |> to_string()))
     |> resp(non_200_status, body)
     |> halt()
     |> then(fn conn -> {:error, conn} end)
@@ -92,7 +98,7 @@ defmodule Stow.Plug.Source do
 
   defp update_conn({:error, _} = err, conn, uri, _opt_headers) do
     conn
-    |> put_private(:stow, %{source: Source.failed(err, uri |> to_string())})
+    |> update_private(:source, Source.failed(err, uri |> to_string()))
     |> halt()
     |> then(fn conn -> {:error, conn} end)
   end

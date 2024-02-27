@@ -3,6 +3,7 @@ defmodule Stow.Plug.SinkTest do
   use Plug.Test
 
   import Hammox
+  import Stow.Plug.Utils, only: [update_private: 3]
 
   alias Plug.Conn
   alias Stow.FileIOMock, as: FileIO
@@ -30,7 +31,7 @@ defmodule Stow.Plug.SinkTest do
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
       assert %Conn{} = conn = __MODULE__.FileSinkTestPlug.call(conn, [])
-      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private.stow.sink
     end
 
     test "via runtime plug opts", %{conn: conn} do
@@ -42,27 +43,27 @@ defmodule Stow.Plug.SinkTest do
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
       assert %Conn{} = conn = Sink.call(conn, uri: uri, data: data)
-      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private.stow.sink
     end
 
     test "via connection private params", %{conn: conn, path: path, data: data} do
       conn = resp(conn, 200, data)
-      conn = put_private(conn, :stow, %{sink: SinkStruct.new("file:#{path}")})
+      conn = update_private(conn, :sink, SinkStruct.new("file:#{path}"))
       uri = "file:#{path}"
 
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
       assert %Conn{} = conn = Sink.call(conn, [])
-      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private[:stow][:sink]
+      assert %SinkStruct{uri: ^uri, status: :ok} = conn.private.stow.sink
     end
 
     test "error status on malformed file uri", %{conn: conn, data: data} do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
-      assert %Conn{} = conn = Sink.call(conn, uri: "uri_without_scheme", data: "")
+      assert %Conn{} = conn = Sink.call(conn, uri: "no_scheme_uri", data: "")
       assert %SinkStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.sink
 
       conn = resp(conn, 200, data)
-      conn = put_private(conn, :stow, %{sink: SinkStruct.new("uri_without_scheme")})
+      conn = update_private(conn, :sink, SinkStruct.new("no_scheme_uri"))
       assert %Conn{} = conn = Sink.call(conn, [])
       assert %SinkStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.sink
     end
@@ -88,7 +89,7 @@ defmodule Stow.Plug.SinkTest do
       uri = "file:#{path}"
 
       conn = resp(conn, 500, "Internal Server Error")
-      conn = put_private(conn, :stow, %{sink: SinkStruct.new(uri)})
+      conn = update_private(conn, :sink, SinkStruct.new(uri))
       assert %Conn{} = conn = Sink.call(conn, [])
       assert %SinkStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.sink
     end

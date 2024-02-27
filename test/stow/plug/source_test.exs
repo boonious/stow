@@ -9,6 +9,7 @@ defmodule Stow.Plug.SourceTest do
   alias Stow.Source, as: SourceStruct
 
   import Hammox
+  import Stow.Plug.Utils, only: [update_private: 3]
 
   defmodule HttpSourceTestPlug do
     use Plug.Builder
@@ -42,7 +43,7 @@ defmodule Stow.Plug.SourceTest do
       end)
 
       assert %Conn{} = conn = __MODULE__.HttpSourceTestPlug.call(conn, [])
-      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private.stow.source
       for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
@@ -60,7 +61,7 @@ defmodule Stow.Plug.SourceTest do
         )
 
       assert %Conn{} = conn
-      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private.stow.source
       for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
@@ -71,16 +72,17 @@ defmodule Stow.Plug.SourceTest do
       end)
 
       conn =
-        put_private(conn, :stow, %{
-          source:
-            SourceStruct.new(uri,
-              req_headers: context.req_headers,
-              resp_headers: context.resp_headers
-            )
-        })
+        update_private(
+          conn,
+          :source,
+          SourceStruct.new(uri,
+            req_headers: context.req_headers,
+            resp_headers: context.resp_headers
+          )
+        )
 
       assert %Conn{} = conn = Source.call(conn, [])
-      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private[:stow][:source]
+      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private.stow.source
       for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
 
@@ -145,7 +147,7 @@ defmodule Stow.Plug.SourceTest do
       assert %Conn{halted: true} = conn = Source.call(conn, uri: "file:/not/http/source")
       assert %SourceStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.source
 
-      conn = put_private(conn, :stow, %{source: SourceStruct.new("file:/not/http/source")})
+      conn = update_private(conn, :source, SourceStruct.new("file:/not/http/source"))
       assert %Conn{halted: true} = conn = Source.call(conn, [])
       assert %SourceStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.source
       assert conn.state != :set

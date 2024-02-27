@@ -2,20 +2,20 @@ defmodule Stow.Plug.Utils do
   @moduledoc false
 
   alias Plug.Conn
-  alias Stow.{Sink, Source}
+  alias Stow.{Pipeline, Sink, Source}
 
   def fetch_uri(conn, opts, {plug_type, schemes}) when is_list(opts) do
-    fetch_uri(conn, Keyword.get(opts, :uri), plug_type, schemes)
+    fetch_uri(conn, Keyword.get(opts, :uri) || plug_type, schemes)
   end
 
   # opt1: uri from plug opts
-  def fetch_uri(_conn, uri, _type, schemes) when is_binary(uri) do
+  def fetch_uri(_conn, uri, schemes) when is_binary(uri) do
     URI.new(uri) |> check_scheme(schemes)
   end
 
   # opt2: uri from conn private
-  def fetch_uri(conn, nil, plug_type, schemes) do
-    conn.private[:stow][plug_type]
+  def fetch_uri(conn, plug_type, schemes) when is_atom(plug_type) do
+    get_in(conn.private, [Access.key(:stow), Access.key(plug_type)])
     |> priv_uri()
     |> check_scheme(schemes)
   end
@@ -54,5 +54,13 @@ defmodule Stow.Plug.Utils do
 
   def put_headers(conn, [{k, v} | rest], type) when type in [:resp, :req] do
     apply(Conn, :"put_#{type}_header", [conn, k, v]) |> put_headers(rest, type)
+  end
+
+  def update_private(conn, field, value) when field in [:source, :sink] do
+    case get_in(conn.private, [:stow]) do
+      %Pipeline{} = stow -> put_in(stow, [Access.key!(field)], value)
+      nil -> Pipeline.new() |> Map.put(field, value)
+    end
+    |> then(&Conn.put_private(conn, :stow, &1))
   end
 end

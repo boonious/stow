@@ -21,10 +21,19 @@ defmodule Stow.Http.Client.Httpc do
          headers <- charlist_headers(conn.req_headers),
          url <- build_req_url(conn) do
       :httpc.request(:get, {url |> to_charlist(), headers}, http_opts, opts)
+      |> handle_response()
     end
   end
 
   def dispatch(_conn, _options), do: {:error, :not_supported}
+
+  defp handle_response({:ok, {{[?H, ?T, ?T, ?P | _], status, _}, headers, body}}) do
+    {:ok,
+     {status, Enum.map(headers, fn {k, v} -> {to_string(k), to_string(v)} end),
+      body |> IO.iodata_to_binary()}}
+  end
+
+  defp handle_response({:error, reason}), do: {:error, reason}
 
   defp split_options([], {http_opts, opts}, :http), do: {http_opts, opts}
   defp split_options([], {http_opts, opts}, :https), do: {http_opts |> set_ssl_opt(), opts}

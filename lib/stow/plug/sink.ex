@@ -6,7 +6,7 @@ defmodule Stow.Plug.Sink do
   alias Stow.Sink
   alias Stow.Plug.Utils
 
-  import Plug.Conn, only: [put_private: 3]
+  import Utils, only: [update_private: 3]
 
   @schemes ["file"]
 
@@ -37,8 +37,7 @@ defmodule Stow.Plug.Sink do
   end
 
   defp fetch_data(conn, nil) do
-    sink_data = %{conn.private[:stow][:sink] | status: {:error, :einval}}
-    {:error, put_private(conn, :stow, %{sink: sink_data})}
+    {:error, update_private(conn, :sink, %{conn.private.stow.sink | status: {:error, :einval}})}
   end
 
   defp put_data(conn, uri, data) do
@@ -52,14 +51,14 @@ defmodule Stow.Plug.Sink do
   defp update_conn(uri, conn, status \\ nil)
 
   defp update_conn({:ok, uri}, conn, nil) do
-    {:ok, uri, put_private(conn, :stow, %{sink: Sink.new(uri |> to_string())})}
+    {:ok, uri, update_private(conn, :sink, Sink.new(uri |> to_string()))}
   end
 
   defp update_conn({:ok, uri}, conn, :ok) do
-    {:ok, uri, put_private(conn, :stow, %{sink: Sink.done(uri |> to_string())})}
+    {:ok, uri, update_private(conn, :sink, Sink.done(uri |> to_string()))}
   end
 
   defp update_conn({:error, reason}, conn, _) do
-    {:error, put_private(conn, :stow, %{sink: Sink.failed({:error, reason})})}
+    {:error, update_private(conn, :sink, Sink.failed({:error, reason}))}
   end
 end
