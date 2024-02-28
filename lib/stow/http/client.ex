@@ -3,6 +3,8 @@ defmodule Stow.Http.Client do
   HTTP client behaviour based on `t:Plug.Conn.t/0`.
   """
 
+  alias Stow.Http.Client
+
   @type client_options :: keyword()
   @type conn :: Plug.Conn.t()
 
@@ -33,5 +35,9 @@ defmodule Stow.Http.Client do
 
   @doc false
   @spec impl() :: module()
-  def impl(), do: Application.get_env(:stow, :http_client, Stow.Http.Client.Httpc)
+  def impl(client \\ "httpc") do
+    Application.get_env(:stow, :http_client, runtime_client(client))
+  end
+
+  defp runtime_client(client), do: client |> Macro.camelize() |> then(&Module.concat(Client, &1))
 end

@@ -5,7 +5,7 @@ defmodule Stow.Plug.Utils do
   alias Stow.{Pipeline, Sink, Source}
 
   def fetch_uri(conn, opts, {plug_type, schemes}) when is_list(opts) do
-    fetch_uri(conn, Keyword.get(opts, :uri) || plug_type, schemes)
+    fetch_uri(conn, Keyword.get(opts, :uri, plug_type), schemes)
   end
 
   # opt1: uri from plug opts
@@ -56,10 +56,12 @@ defmodule Stow.Plug.Utils do
     apply(Conn, :"put_#{type}_header", [conn, k, v]) |> put_headers(rest, type)
   end
 
+  def update_private(conn, _field, nil), do: conn
+
   def update_private(conn, field, value) when field in [:source, :sink] do
     case get_in(conn.private, [:stow]) do
       %Pipeline{} = stow -> put_in(stow, [Access.key!(field)], value)
-      nil -> Pipeline.new() |> Map.put(field, value)
+      nil -> %Pipeline{} |> Map.put(field, value)
     end
     |> then(&Conn.put_private(conn, :stow, &1))
   end
