@@ -14,7 +14,7 @@ defmodule Stow.Sink do
   @type data :: iodata()
   @type options :: keyword()
 
-  @callback delete(uri()) :: {:ok, uri()} | {:error, File.posix()}
+  @callback delete(uri(), options()) :: {:ok, uri()} | {:error, File.posix()}
   @callback put(uri(), data, options()) :: {:ok, uri()} | {:error, File.posix()}
 
   def new(uri), do: %__MODULE__{uri: uri}

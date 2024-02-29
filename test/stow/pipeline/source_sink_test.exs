@@ -12,15 +12,15 @@ defmodule Stow.Pipeline.SourceSinkTest do
 
   setup :verify_on_exit!
 
-  setup do
+  setup_all do
     {status, headers, body} = {200, [{"content-type", "text/html; charset=utf-8"}], "hi"}
     resp = {:ok, {status, headers, body}}
 
     %{
       conn: conn(),
       resp: resp,
-      path: "/path/to/file",
-      source: "http://online.com/api/source"
+      sink_uri: "file:/path/to/file",
+      src_uri: "http://online.com/api/source"
     }
   end
 
@@ -36,7 +36,7 @@ defmodule Stow.Pipeline.SourceSinkTest do
     test "dispatches get request to http source", context do
       HttpClient
       |> expect(:dispatch, fn %{state: :unset, status: nil} = conn, [] ->
-        source = URI.new!(context.source)
+        source = URI.new!(context.src_uri)
         assert conn.host == source.host
         assert conn.port == source.port
         assert conn.scheme == :http
@@ -45,23 +45,25 @@ defmodule Stow.Pipeline.SourceSinkTest do
         context.resp
       end)
 
-      SourceSink.call(context.conn, source: context.source, sink: "file:#{context.path}")
+      SourceSink.call(context.conn, source: context.src_uri, sink: context.sink_uri)
     end
 
-    test "writes source to file", %{path: path} = context do
+    test "writes source to file", context do
       {:ok, {_status, _headers, body}} = context.resp
-      dir = Path.dirname(path)
+      uri = URI.new!(context.sink_uri)
+      path = [Application.get_env(:stow, :base_dir), uri.path]
+      dir = path |> Path.dirname()
 
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^body, [] -> :ok end)
-      SourceSink.call(context.conn, source: context.source, sink: "file:#{path}")
+      SourceSink.call(context.conn, source: context.src_uri, sink: context.sink_uri)
     end
 
-    test "http response", %{conn: conn, path: path, source: source} = context do
+    test "http response", %{conn: conn, sink_uri: sink_uri, src_uri: src_uri} = context do
       {:ok, {status, headers, body}} = context.resp
-      assert %Conn{} = conn = SourceSink.call(conn, source: source, sink: "file:#{path}")
+      assert %Conn{} = conn = SourceSink.call(conn, source: src_uri, sink: sink_uri)
 
-      source = URI.new!(source)
+      source = URI.new!(src_uri)
       assert conn.host == source.host
       assert conn.port == source.port
       assert conn.request_path == source.path
@@ -71,22 +73,21 @@ defmodule Stow.Pipeline.SourceSinkTest do
       for h <- headers, do: assert(h in conn.resp_headers)
     end
 
-    test "sets private fields", %{conn: conn, path: path, source: source} = context do
+    test "sets private fields", %{sink_uri: sink_uri, src_uri: src_uri} = context do
       HttpClient
       |> expect(:dispatch, fn %{private: private}, [] ->
         assert %Pipeline{source: source, sink: sink} = private.stow
-        assert source == Source.new(context.source)
-        assert sink == Sink.new("file:#{path}")
+        assert source == Source.new(src_uri)
+        assert sink == Sink.new(sink_uri)
 
         context.resp
       end)
 
-      path = "file:#{path}"
-      assert %Conn{} = conn = SourceSink.call(conn, source: source, sink: path)
+      assert %Conn{} = conn = SourceSink.call(context.conn, source: src_uri, sink: sink_uri)
 
       assert %Pipeline{
-               source: %Source{status: :ok, uri: ^source, req_headers: [], resp_headers: []},
-               sink: %Sink{uri: ^path, status: :ok}
+               source: %Source{status: :ok, uri: ^src_uri, req_headers: [], resp_headers: []},
+               sink: %Sink{uri: ^sink_uri, status: :ok}
              } = conn.private.stow
     end
   end
@@ -105,26 +106,26 @@ defmodule Stow.Pipeline.SourceSinkTest do
     end
 
     test "when only source is given", %{conn: conn} = context do
-      assert %Conn{} = conn = SourceSink.call(conn, source: context.source)
+      assert %Conn{} = conn = SourceSink.call(conn, source: context.src_uri)
       assert %{halted: true, status: nil, state: :unset} = conn
     end
 
     test "when only sink is given", %{conn: conn} = context do
-      assert %Conn{} = conn = SourceSink.call(conn, sink: "file:#{context.path}")
+      assert %Conn{} = conn = SourceSink.call(conn, sink: context.sink_uri)
       assert %{halted: true, status: nil, state: :unset} = conn
     end
 
     test "with correct private fields", context do
-      source_field = Source.new(context.source)
-      sink_field = Sink.new("file:#{context.path}")
+      source_field = Source.new(context.src_uri)
+      sink_field = Sink.new(context.sink_uri)
 
       conn = SourceSink.call(context.conn, [])
       assert %{} = conn.private
 
-      conn = SourceSink.call(context.conn, source: context.source)
+      conn = SourceSink.call(context.conn, source: context.src_uri)
       assert %Pipeline{source: ^source_field, sink: nil} = conn.private.stow
 
-      conn = SourceSink.call(context.conn, sink: "file:#{context.path}")
+      conn = SourceSink.call(context.conn, sink: context.sink_uri)
       assert %Pipeline{source: nil, sink: ^sink_field} = conn.private.stow
     end
   end

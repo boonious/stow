@@ -6,27 +6,31 @@ defmodule Stow.Plug.Sink do
   alias Stow.Sink
   alias Stow.Plug.Utils
 
-  import Utils, only: [update_private: 3]
+  import Utils, only: [fetch_uri: 2, update_private: 3]
 
+  @plug_opts [:uri, :data, :extra_opts]
   @schemes ["file"]
 
   @impl true
-  def init(opts), do: Keyword.validate!(opts, [:uri, :data])
+  def init(opts), do: validate_opts(opts)
 
   @impl true
   def call(conn, opts) do
-    with {:ok, uri, conn} <- fetch_uri(conn, opts),
+    with opts <- validate_opts(opts),
+         {:ok, uri, conn} <- parse_uri(conn, opts),
          {:ok, data} <- fetch_data(conn, Keyword.get(opts, :data)),
-         {:ok, _uri, conn} <- put_data(conn, uri, data) do
+         {:ok, _uri, conn} <- put_data(conn, uri, data, opts) do
       conn
     else
       {:error, conn} -> conn
     end
   end
 
-  defp fetch_uri(conn, opts) do
-    Utils.fetch_uri(conn, opts, {:sink, @schemes}) |> update_conn(conn)
-  end
+  defp validate_opts(opts), do: Keyword.validate!(opts, @plug_opts)
+  defp add_extra_opts(opts), do: [field: :sink, schemes: @schemes] |> Keyword.merge(opts)
+
+  defp parse_uri(conn, opts),
+    do: add_extra_opts(opts) |> then(&fetch_uri(conn, &1)) |> update_conn(conn)
 
   # opt1: data from plug opts
   defp fetch_data(_conn, data) when is_binary(data) or is_list(data), do: {:ok, data}
@@ -40,11 +44,11 @@ defmodule Stow.Plug.Sink do
     {:error, update_private(conn, :sink, %{conn.private.stow.sink | status: {:error, :einval}})}
   end
 
-  defp put_data(conn, uri, data) do
+  defp put_data(conn, uri, data, opts) do
     (uri.scheme <> "_sink")
     |> Macro.camelize()
     |> then(fn sink -> Module.concat(Sink, sink) end)
-    |> apply(:put, [uri, data, []])
+    |> apply(:put, [uri, data, Keyword.get(opts, :extra_opts, [])])
     |> update_conn(conn, :ok)
   end
 

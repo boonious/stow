@@ -11,7 +11,10 @@ defmodule Stow.Sink.FileSink do
 
   @behaviour Stow.Sink
 
+  import Stow.Pipeline, only: [base_dir: 1]
+
   @file_io Application.compile_env(:stow, :file_io, Elixir.File)
+  @options [:base_dir, :modes, :file_io]
 
   @doc """
   Writing data to a local file location specified with a `URI.t()` identifier.
@@ -25,18 +28,30 @@ defmodule Stow.Sink.FileSink do
   """
   @impl true
   def put(%URI{scheme: "file", host: nil, path: path} = uri, data, opts) when not is_nil(path) do
-    with :ok <- maybe_create_dir(uri.path |> Path.dirname()),
-         :ok <- write_file(uri.path, data, opts) do
+    with opts <- validate_opts(opts),
+         path <- [base_dir(opts), path],
+         :ok <- maybe_create_dir(path),
+         :ok <- write_file(path, data, opts) do
       {:ok, uri}
     end
   end
 
   def put(uri, _data, _opts), do: raise(__MODULE__.MalformedURIError.exception(uri))
 
-  defp maybe_create_dir(dir), do: if(@file_io.exists?(dir), do: :ok, else: @file_io.mkdir_p(dir))
+  defp validate_opts(opts), do: Keyword.validate!(opts, @options)
+
+  defp maybe_create_dir(path) do
+    dir = path |> Path.dirname()
+
+    case dir |> @file_io.exists?() do
+      true -> :ok
+      false -> @file_io.mkdir_p(dir)
+    end
+  end
 
   defp write_file(path, data, opts) do
-    Keyword.get(opts, :file_io, @file_io).write(path, data, Keyword.get(opts, :mode, []))
+    file_modes = Keyword.get(opts, :modes, [])
+    Keyword.get(opts, :file_io, @file_io).write(path, data, file_modes)
   end
 
   @doc """
@@ -46,12 +61,12 @@ defmodule Stow.Sink.FileSink do
   ```
     "file:/path/to/file.gz"
     |> URI.new!()
-    |> Stow.Sink.FileSink.delete()
+    |> Stow.Sink.FileSink.delete(opts)
   ```
   """
   @impl true
-  def delete(%URI{scheme: "file", host: nil, path: path} = uri) when not is_nil(path) do
-    case @file_io.rm(path) do
+  def delete(%URI{scheme: "file", host: nil, path: path} = uri, opts) when not is_nil(path) do
+    case [validate_opts(opts) |> base_dir(), path] |> @file_io.rm() do
       :ok -> {:ok, uri}
       {:error, reason} -> {:error, reason}
     end

@@ -6,17 +6,18 @@ defmodule Stow.Plug.Source do
   alias Stow.Source
 
   import Plug.Conn, only: [halt: 1, resp: 3]
-  import Utils, only: [update_private: 3]
+  import Utils, only: [fetch_uri: 2, put_headers: 3, set_uri_params: 2, update_private: 3]
 
   @plug_opts [:uri, :req_headers, :resp_headers]
   @schemes ["http", "https"]
 
   @impl true
-  def init(opts), do: Keyword.validate!(opts, @plug_opts)
+  def init(opts), do: validate_opts(opts)
 
   @impl true
   def call(conn, opts) do
-    with {:ok, uri, conn} <- fetch_uri(conn, opts),
+    with opts <- validate_opts(opts),
+         {:ok, uri, conn} <- parse_uri(conn, opts),
          conn <- set_uri_params(conn, uri),
          req_headers <- get_req_headers(conn, opts),
          conn <- put_headers(conn, req_headers, :req),
@@ -27,12 +28,12 @@ defmodule Stow.Plug.Source do
     end
   end
 
-  defp fetch_uri(conn, opts) do
-    Utils.fetch_uri(conn, opts, {:source, @schemes}) |> update_conn(conn)
-  end
+  defp validate_opts(opts), do: Keyword.validate!(opts, @plug_opts)
+  defp add_extra_opts(opts), do: [field: :source, schemes: @schemes] |> Keyword.merge(opts)
 
-  defdelegate set_uri_params(conn, uri), to: Utils
-  defdelegate put_headers(conn, headers, type), to: Utils
+  defp parse_uri(conn, opts) do
+    add_extra_opts(opts) |> then(&fetch_uri(conn, &1)) |> update_conn(conn)
+  end
 
   defp get_req_headers(conn, opts) do
     get_in(conn.private, [:stow, Access.key!(:source)]) |> private_headers(:req) ||

@@ -4,8 +4,9 @@ defmodule Stow.Plug.Utils do
   alias Plug.Conn
   alias Stow.{Pipeline, Sink, Source}
 
-  def fetch_uri(conn, opts, {plug_type, schemes}) when is_list(opts) do
-    fetch_uri(conn, Keyword.get(opts, :uri, plug_type), schemes)
+  def fetch_uri(conn, opts) when is_list(opts) do
+    uri_or_field = Keyword.get(opts, :uri) || Keyword.get(opts, :field)
+    fetch_uri(conn, uri_or_field, Keyword.get(opts, :schemes, []))
   end
 
   # opt1: uri from plug opts
@@ -14,8 +15,8 @@ defmodule Stow.Plug.Utils do
   end
 
   # opt2: uri from conn private
-  def fetch_uri(conn, plug_type, schemes) when is_atom(plug_type) do
-    get_in(conn.private, [Access.key(:stow), Access.key(plug_type)])
+  def fetch_uri(conn, field, schemes) when is_atom(field) do
+    get_in(conn.private, [Access.key(:stow), Access.key(field)])
     |> priv_uri()
     |> check_scheme(schemes)
   end
