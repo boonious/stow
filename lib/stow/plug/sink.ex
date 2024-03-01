@@ -8,7 +8,7 @@ defmodule Stow.Plug.Sink do
 
   import Utils, only: [fetch_uri: 2, update_private: 3]
 
-  @plug_opts [:uri, :data, :extra_opts]
+  @plug_opts [:uri, :data, :extras]
   @schemes ["file"]
 
   @impl true
@@ -27,10 +27,10 @@ defmodule Stow.Plug.Sink do
   end
 
   defp validate_opts(opts), do: Keyword.validate!(opts, @plug_opts)
-  defp add_extra_opts(opts), do: [field: :sink, schemes: @schemes] |> Keyword.merge(opts)
 
-  defp parse_uri(conn, opts),
-    do: add_extra_opts(opts) |> then(&fetch_uri(conn, &1)) |> update_conn(conn)
+  defp parse_uri(conn, opts) do
+    fetch_uri(conn, [field: :sink, schemes: @schemes] |> Keyword.merge(opts)) |> update_conn(conn)
+  end
 
   # opt1: data from plug opts
   defp fetch_data(_conn, data) when is_binary(data) or is_list(data), do: {:ok, data}
@@ -48,9 +48,14 @@ defmodule Stow.Plug.Sink do
     (uri.scheme <> "_sink")
     |> Macro.camelize()
     |> then(fn sink -> Module.concat(Sink, sink) end)
-    |> apply(:put, [uri, data, Keyword.get(opts, :extra_opts, [])])
+    # to fix fetch "extras" from private sink field or opts
+    |> apply(:put, [uri, data, Keyword.get(opts, :extras, [])])
     |> update_conn(conn, :ok)
   end
+
+  # to fix: fetch "extras" from private sink field or opts
+  # defp fetch_headers(nil, _type), do: nil
+  # etc
 
   defp update_conn(uri, conn, status \\ nil)
 

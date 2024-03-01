@@ -16,8 +16,12 @@ defmodule Stow.Plug.SourceTest do
 
     plug(Source,
       uri: "http://localhost/path/to/source?foo=bar",
-      req_headers: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
-      resp_headers: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
+      extras: %{
+        headers: %{
+          req: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
+          resp: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
+        }
+      }
     )
   end
 
@@ -56,8 +60,12 @@ defmodule Stow.Plug.SourceTest do
       conn =
         Source.call(conn,
           uri: uri,
-          req_headers: context.req_headers,
-          resp_headers: context.resp_headers
+          extras: %{
+            headers: %{
+              req: context.req_headers,
+              resp: context.resp_headers
+            }
+          }
         )
 
       assert %Conn{} = conn

@@ -16,6 +16,13 @@ defmodule Stow.Pipeline do
       use Plug.Builder, unquote(opts)
       import Stow.Pipeline
       alias Stow.Pipeline
+
+      plug(:first)
+
+      # Plug always run the first plug
+      # before halting a pipeline.
+      # This plug enables halting through a halted conn via `super`
+      def first(conn, _opts), do: conn
     end
   end
 

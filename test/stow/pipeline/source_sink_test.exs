@@ -86,7 +86,11 @@ defmodule Stow.Pipeline.SourceSinkTest do
       assert %Conn{} = conn = SourceSink.call(context.conn, source: src_uri, sink: sink_uri)
 
       assert %Pipeline{
-               source: %Source{status: :ok, uri: ^src_uri, req_headers: [], resp_headers: []},
+               source: %Source{
+                 status: :ok,
+                 uri: ^src_uri,
+                 extras: %{headers: %{req: [], resp: []}}
+               },
                sink: %Sink{uri: ^sink_uri, status: :ok}
              } = conn.private.stow
     end

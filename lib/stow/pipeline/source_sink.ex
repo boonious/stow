@@ -12,6 +12,7 @@ defmodule Stow.Pipeline.SourceSink do
   plug(Source)
   plug(Sink)
 
+  @impl true
   def call(conn, opts) do
     opts = Keyword.validate!(opts, @fields)
 
@@ -19,10 +20,7 @@ defmodule Stow.Pipeline.SourceSink do
     |> Enum.map(&{&1, Keyword.get(opts, &1)})
     |> then(&set_private_fields(conn, &1))
     |> maybe_halt_pipeline()
-    |> case do
-      %Conn{halted: false} = conn -> super(conn, opts |> Keyword.drop(@fields))
-      conn -> conn
-    end
+    |> super(opts)
   end
 
   def set_private_fields(conn, []), do: conn

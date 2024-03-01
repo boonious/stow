@@ -4,13 +4,14 @@ defmodule Stow.Source do
   """
 
   alias Stow.Http.Client, as: HttpClient
+  alias Stow.Http.Headers
+  alias Stow.Source.Extras
 
-  defstruct [:uri, :status, req_headers: [], resp_headers: []]
+  defstruct [:uri, :status, extras: %Extras{}]
 
   @type t :: %__MODULE__{
           uri: binary() | nil,
-          req_headers: [tuple()],
-          resp_headers: [tuple()],
+          extras: Extras.t(),
           status: nil | :ok | {:error, term()}
         }
 
@@ -22,8 +23,12 @@ defmodule Stow.Source do
   def new(uri, headers \\ []) do
     %__MODULE__{
       uri: uri,
-      req_headers: Keyword.get(headers, :req_headers, []),
-      resp_headers: Keyword.get(headers, :resp_headers, [])
+      extras: %Extras{
+        headers: %Headers{
+          req: Keyword.get(headers, :req_headers, []),
+          resp: Keyword.get(headers, :resp_headers, [])
+        }
+      }
     }
   end
 
