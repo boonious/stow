@@ -8,7 +8,7 @@ defmodule Stow.Plug.Source do
   import Plug.Conn, only: [halt: 1, resp: 3]
   import Utils, only: [fetch_uri: 2, put_headers: 3, set_uri_params: 2, update_private: 3]
 
-  @plug_opts [:uri, :extras]
+  @plug_opts [:uri, :options]
   @schemes ["http", "https"]
 
   @impl true
@@ -37,13 +37,13 @@ defmodule Stow.Plug.Source do
 
   defp get_req_headers(conn, opts) do
     fetch_headers(conn.private.stow.source, :req) ||
-      fetch_headers(Keyword.get(opts, :extras), :req) || []
+      fetch_headers(Keyword.get(opts, :options), :req) || []
   end
 
   # to fix: refactor this to the plug utils module
   defp fetch_headers(nil, _type), do: nil
-  defp fetch_headers(%Source{extras: %{headers: %{req: h}}}, :req) when h != [], do: h
-  defp fetch_headers(%Source{extras: %{headers: %{resp: h}}}, :resp) when h != [], do: h
+  defp fetch_headers(%Source{options: %{headers: %{req: h}}}, :req) when h != [], do: h
+  defp fetch_headers(%Source{options: %{headers: %{resp: h}}}, :resp) when h != [], do: h
   defp fetch_headers(%{headers: %{req: h}}, :req) when h != [], do: h
   defp fetch_headers(%{headers: %{resp: h}}, :resp) when h != [], do: h
   defp fetch_headers(%{}, _), do: nil
@@ -54,7 +54,7 @@ defmodule Stow.Plug.Source do
     |> Macro.camelize()
     |> then(fn source -> Module.concat(Source, source) end)
     |> apply(:get, [conn, opts |> Keyword.drop(@plug_opts)])
-    |> update_conn(conn, uri, fetch_headers(Keyword.get(opts, :extras), :resp) || [])
+    |> update_conn(conn, uri, fetch_headers(Keyword.get(opts, :options), :resp) || [])
   end
 
   defp normalise_scheme_name(scheme) when scheme in [:http, :https], do: "http"
