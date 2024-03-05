@@ -5,18 +5,12 @@ defmodule Stow.Plug.Utils do
   alias Stow.{Pipeline, Sink, Source}
 
   def fetch_uri(conn, opts) when is_list(opts) do
-    uri_or_field = Keyword.get(opts, :uri) || Keyword.get(opts, :field)
-    fetch_uri(conn, uri_or_field, Keyword.get(opts, :schemes, []))
+    fetch_uri(conn, Keyword.get(opts, :field), Keyword.get(opts, :schemes, []))
   end
 
-  # opt1: uri from plug opts
-  def fetch_uri(_conn, uri, schemes) when is_binary(uri) do
-    URI.new(uri) |> check_scheme(schemes)
-  end
-
-  # opt2: uri from conn private
+  # uri from conn private
   def fetch_uri(conn, field, schemes) when is_atom(field) do
-    get_in(conn.private, [Access.key(:stow), Access.key(field)])
+    get_in(conn.private, [:stow, Access.key!(field)])
     |> priv_uri()
     |> check_scheme(schemes)
   end
@@ -65,5 +59,23 @@ defmodule Stow.Plug.Utils do
       nil -> %Pipeline{} |> Map.put(field, value)
     end
     |> then(&Conn.put_private(conn, :stow, &1))
+  end
+
+  def set_private_opts(conn, plug_type, opts) do
+    case {get_in(conn.private, [:stow, Access.key!(plug_type)]), plug_type} do
+      {%Sink{} = _sink, _} ->
+        {:ok, conn}
+
+      {%Source{} = _sink, _} ->
+        {:ok, conn}
+
+      {nil, :sink} ->
+        struct!(Sink, opts |> Keyword.drop([:data]))
+        |> then(&{:ok, update_private(conn, plug_type, &1)})
+
+      {nil, :source} ->
+        struct!(Source, opts)
+        |> then(&{:ok, update_private(conn, plug_type, &1)})
+    end
   end
 end

@@ -6,7 +6,7 @@ defmodule Stow.Plug.Sink do
   alias Stow.Sink
   alias Stow.Plug.Utils
 
-  import Utils, only: [fetch_uri: 2, update_private: 3]
+  import Utils, only: [fetch_uri: 2, set_private_opts: 3, update_private: 3]
 
   @plug_opts [:uri, :data, :extras]
   @schemes ["file"]
@@ -17,6 +17,7 @@ defmodule Stow.Plug.Sink do
   @impl true
   def call(conn, opts) do
     with opts <- validate_opts(opts),
+         {:ok, conn} <- set_private_opts(conn, :sink, opts),
          {:ok, uri, conn} <- parse_uri(conn, opts),
          {:ok, data} <- fetch_data(conn, Keyword.get(opts, :data)),
          {:ok, _uri, conn} <- put_data(conn, uri, data, opts) do

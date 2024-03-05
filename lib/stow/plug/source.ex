@@ -6,7 +6,15 @@ defmodule Stow.Plug.Source do
   alias Stow.Source
 
   import Plug.Conn, only: [halt: 1, resp: 3]
-  import Utils, only: [fetch_uri: 2, put_headers: 3, set_uri_params: 2, update_private: 3]
+
+  import Utils,
+    only: [
+      fetch_uri: 2,
+      put_headers: 3,
+      set_private_opts: 3,
+      set_uri_params: 2,
+      update_private: 3
+    ]
 
   @plug_opts [:uri, :options]
   @schemes ["http", "https"]
@@ -17,6 +25,7 @@ defmodule Stow.Plug.Source do
   @impl true
   def call(conn, opts) do
     with opts <- validate_opts(opts),
+         {:ok, conn} <- set_private_opts(conn, :source, opts),
          {:ok, uri, conn} <- parse_uri(conn, opts),
          conn <- set_uri_params(conn, uri),
          req_headers <- get_req_headers(conn, opts),
