@@ -12,6 +12,7 @@ defmodule Stow.Pipeline.SourceSink do
   plug(Source)
   plug(Sink)
 
+  # TODO: passing opts to source/sink, default opts in source/sink
   @impl true
   def call(conn, opts) do
     opts = Keyword.validate!(opts, @fields)

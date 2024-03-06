@@ -11,6 +11,6 @@ defmodule Stow.Source.HttpSource do
 
   @impl true
   def get(%Conn{scheme: scheme, method: "GET"} = conn, opts) when scheme in @schemes do
-    Keyword.get(opts, :http_client, Client.impl()).dispatch(conn, opts)
+    Map.get(opts, :http_client, Client.impl()).dispatch(conn, Map.get(opts, :http_opts, []))
   end
 end

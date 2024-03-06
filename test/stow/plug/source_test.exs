@@ -17,9 +17,9 @@ defmodule Stow.Plug.SourceTest do
     plug(Source,
       uri: "http://localhost/path/to/source?foo=bar",
       options: %{
-        headers: %{
-          req: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
-          resp: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
+        "http" => %{
+          req_headers: [{"accept", "text/html"}, {"accept-charset", "utf-8"}],
+          resp_headers: [{"server", "apache/2.4.1 (unix)"}, {"cache-control", "max-age=604800"}]
         }
       }
     )
@@ -61,9 +61,9 @@ defmodule Stow.Plug.SourceTest do
         Source.call(conn,
           uri: uri,
           options: %{
-            headers: %{
-              req: context.req_headers,
-              resp: context.resp_headers
+            "http" => %{
+              req_headers: context.req_headers,
+              resp_headers: context.resp_headers
             }
           }
         )
@@ -79,20 +79,18 @@ defmodule Stow.Plug.SourceTest do
         context.resp
       end)
 
-      conn =
-        update_private(
-          conn,
-          :source,
-          SourceStruct.new(uri,
-            req_headers: context.req_headers,
-            resp_headers: context.resp_headers
-          )
-        )
+      options = %{
+        "http" => %{req_headers: context.req_headers, resp_headers: context.resp_headers}
+      }
+
+      conn = update_private(conn, :source, SourceStruct.new(uri, options))
 
       assert %Conn{} = conn = Source.call(conn, [])
-      assert %SourceStruct{uri: ^uri, status: :ok} = conn.private.stow.source
+      assert %SourceStruct{uri: ^uri, status: :ok, options: ^options} = conn.private.stow.source
       for h <- context.resp_headers, do: assert(h in conn.resp_headers)
     end
+
+    # TODO: test passing of http opts to underlying client
 
     test "client request uri and query params", %{conn: conn, resp: resp, uri: uri} do
       %{scheme: scheme, host: host, path: path, port: port, query: query} = URI.new!(uri)
@@ -140,7 +138,9 @@ defmodule Stow.Plug.SourceTest do
       |> expect(:dispatch, fn _conn, [] -> {:ok, {500, [], "Internal Server Error"}} end)
 
       assert %Conn{halted: true} = conn = Source.call(conn, uri: uri)
-      assert %SourceStruct{uri: ^uri, status: {:error, :"500_status"}} = conn.private.stow.source
+
+      assert %SourceStruct{uri: ^uri, status: {:error, :non_200_status}} =
+               conn.private.stow.source
     end
 
     test "when source is down", %{conn: conn, uri: uri} do
@@ -151,20 +151,19 @@ defmodule Stow.Plug.SourceTest do
       assert conn.state != :set
     end
 
-    test "error status on malformed http uri", %{conn: conn} do
-      assert %Conn{halted: true} = conn = Source.call(conn, uri: "file:/not/http/source")
-      assert %SourceStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.source
+    test "error status on unsupported source", %{conn: conn} do
+      uri = "file:/not/http/source"
+      assert %Conn{halted: true} = conn = Source.call(conn, uri: uri)
+      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.source
 
-      conn = update_private(conn, :source, SourceStruct.new("file:/not/http/source"))
+      conn = update_private(conn, :source, SourceStruct.new(uri))
       assert %Conn{halted: true} = conn = Source.call(conn, [])
-      assert %SourceStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.source
+      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.source
       assert conn.state != :set
     end
 
-    test "error status when no http uri available", %{conn: conn} do
-      assert %Conn{halted: true} = conn = Source.call(conn, [])
-      assert %SourceStruct{uri: nil, status: {:error, :einval}} = conn.private.stow.source
-      assert conn.state != :set
+    test "raises when no http uri available", %{conn: conn} do
+      assert_raise(ArgumentError, fn -> Source.call(conn, []) end)
     end
   end
 end

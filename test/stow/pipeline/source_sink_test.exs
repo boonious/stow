@@ -88,8 +88,7 @@ defmodule Stow.Pipeline.SourceSinkTest do
       assert %Pipeline{
                source: %Source{
                  status: :ok,
-                 uri: ^src_uri,
-                 options: %{headers: %{req: [], resp: []}}
+                 uri: ^src_uri
                },
                sink: %Sink{uri: ^sink_uri, status: :ok}
              } = conn.private.stow

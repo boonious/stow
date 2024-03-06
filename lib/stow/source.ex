@@ -4,34 +4,19 @@ defmodule Stow.Source do
   """
 
   alias Stow.Http.Client, as: HttpClient
-  alias Stow.Http.Headers
-  alias Stow.Options
 
-  defstruct [:uri, :status, options: %Options{}]
+  @enforce_keys [:uri]
+  defstruct [:uri, :status, :options]
 
   @type t :: %__MODULE__{
           uri: binary() | nil,
-          options: Options.t(),
-          status: nil | :ok | {:error, term()}
+          status: nil | :ok | {:error, term()},
+          options: %{String.t() => %{atom() => keyword()}}
         }
 
   @type conn :: Plug.Conn.t()
-  @type options :: keyword()
 
-  @callback get(conn(), options()) :: HttpClient.response()
+  @callback get(conn(), map()) :: HttpClient.response()
 
-  def new(uri, headers \\ []) do
-    %__MODULE__{
-      uri: uri,
-      options: %Options{
-        headers: %Headers{
-          req: Keyword.get(headers, :req_headers, []),
-          resp: Keyword.get(headers, :resp_headers, [])
-        }
-      }
-    }
-  end
-
-  def done(uri), do: %__MODULE__{uri: uri, status: :ok}
-  def failed(error, uri \\ nil), do: %__MODULE__{uri: uri, status: error}
+  def new(uri, options \\ nil), do: %__MODULE__{uri: uri, options: options}
 end

@@ -3,12 +3,13 @@ defmodule Stow.Sink do
   Behaviour for writing and deleting data.
   """
 
-  defstruct [:uri, :status, extras: []]
+  @enforce_keys [:uri]
+  defstruct [:uri, :status, :options]
 
   @type t :: %__MODULE__{
           uri: binary() | nil,
           status: nil | :ok | {:error, term()},
-          extras: keyword()
+          options: %{String.t() => keyword()}
         }
 
   @type uri :: URI.t()
@@ -18,7 +19,5 @@ defmodule Stow.Sink do
   @callback delete(uri(), options()) :: {:ok, uri()} | {:error, File.posix()}
   @callback put(uri(), data, options()) :: {:ok, uri()} | {:error, File.posix()}
 
-  def new(uri, extras \\ []), do: %__MODULE__{uri: uri, extras: extras}
-  def done(uri), do: %__MODULE__{uri: uri, status: :ok}
-  def failed(error), do: %__MODULE__{status: error}
+  def new(uri, options \\ nil), do: %__MODULE__{uri: uri, options: options}
 end

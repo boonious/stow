@@ -78,4 +78,9 @@ defmodule Stow.Plug.Utils do
         |> then(&{:ok, update_private(conn, plug_type, &1)})
     end
   end
+
+  def fetch_opts(options, plug_type, empty \\ %{})
+  def fetch_opts(nil, _, empty), do: empty
+  def fetch_opts(%{"file" => opts}, :sink, _) when is_list(opts), do: opts
+  def fetch_opts(%{"http" => opts}, :source, _) when is_map(opts), do: opts
 end

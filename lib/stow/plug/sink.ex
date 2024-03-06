@@ -6,9 +6,9 @@ defmodule Stow.Plug.Sink do
   alias Stow.Sink
   alias Stow.Plug.Utils
 
-  import Utils, only: [fetch_uri: 2, set_private_opts: 3, update_private: 3]
+  import Utils, only: [fetch_opts: 3, fetch_uri: 2, set_private_opts: 3, update_private: 3]
 
-  @plug_opts [:uri, :data, :extras]
+  @plug_opts [:uri, :data, :options]
   @schemes ["file"]
 
   @impl true
@@ -16,17 +16,17 @@ defmodule Stow.Plug.Sink do
 
   @impl true
   def call(conn, opts) do
-    with opts <- validate_opts(opts),
-         {:ok, conn} <- set_private_opts(conn, :sink, opts),
+    with {:ok, conn} <- set_private_opts(conn, :sink, opts),
          {:ok, uri, conn} <- parse_uri(conn, opts),
          {:ok, data} <- fetch_data(conn, Keyword.get(opts, :data)),
-         {:ok, _uri, conn} <- put_data(conn, uri, data, opts) do
+         {:ok, _uri, conn} <- put_data(conn, uri, data) do
       conn
     else
       {:error, conn} -> conn
     end
   end
 
+  # TODO: validate options in %{"scheme" => keyword()} format
   defp validate_opts(opts), do: Keyword.validate!(opts, @plug_opts)
 
   defp parse_uri(conn, opts) do
@@ -45,30 +45,23 @@ defmodule Stow.Plug.Sink do
     {:error, update_private(conn, :sink, %{conn.private.stow.sink | status: {:error, :einval}})}
   end
 
-  defp put_data(conn, uri, data, opts) do
+  defp put_data(conn, uri, data) do
     (uri.scheme <> "_sink")
     |> Macro.camelize()
     |> then(fn sink -> Module.concat(Sink, sink) end)
-    # to fix fetch "extras" from private sink field or opts
-    |> apply(:put, [uri, data, Keyword.get(opts, :extras, [])])
+    |> apply(:put, [uri, data, fetch_opts(conn.private.stow.sink.options, :sink, [])])
     |> update_conn(conn, :ok)
   end
 
-  # to fix: fetch "extras" from private sink field or opts
-  # defp fetch_headers(nil, _type), do: nil
-  # etc
-
   defp update_conn(uri, conn, status \\ nil)
 
-  defp update_conn({:ok, uri}, conn, nil) do
-    {:ok, uri, update_private(conn, :sink, Sink.new(uri |> to_string()))}
-  end
+  defp update_conn({:ok, uri}, conn, nil), do: {:ok, uri, conn}
 
   defp update_conn({:ok, uri}, conn, :ok) do
-    {:ok, uri, update_private(conn, :sink, Sink.done(uri |> to_string()))}
+    {:ok, uri, update_private(conn, :sink, %{conn.private.stow.sink | status: :ok})}
   end
 
   defp update_conn({:error, reason}, conn, _) do
-    {:error, update_private(conn, :sink, Sink.failed({:error, reason}))}
+    {:error, update_private(conn, :sink, %{conn.private.stow.sink | status: {:error, reason}})}
   end
 end

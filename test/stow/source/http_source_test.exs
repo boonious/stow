@@ -34,7 +34,7 @@ defmodule Stow.Source.HttpSourceTest do
         resp
       end)
 
-      assert ^resp = HttpSource.get(conn, [])
+      assert ^resp = HttpSource.get(conn, %{})
     end
   end
 end
