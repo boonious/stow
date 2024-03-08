@@ -32,7 +32,7 @@ defmodule Stow.Sink.FileSinkTest do
       data = data["binary"]
 
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
-      assert {:ok, ^uri} = FileSink.put(uri, data, opts)
+      assert :ok == FileSink.put(uri, data, opts)
     end
 
     test "io list to file", %{data: data, opts: opts, path: path, uri: uri} do
@@ -106,7 +106,7 @@ defmodule Stow.Sink.FileSinkTest do
   describe "delete/2" do
     test "existing file", %{opts: opts, path: path, uri: uri} do
       FileIO |> expect(:rm, fn ^path -> :ok end)
-      assert {:ok, ^uri} = FileSink.delete(uri, opts)
+      assert :ok == FileSink.delete(uri, opts)
     end
 
     test "returns error tuple on deletion error", %{opts: opts, path: path, uri: uri} do

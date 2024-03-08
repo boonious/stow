@@ -15,12 +15,15 @@ defmodule Stow.Pipeline.SourceSinkTest do
   setup_all do
     {status, headers, body} = {200, [{"content-type", "text/html; charset=utf-8"}], "hi"}
     resp = {:ok, {status, headers, body}}
+    sink_uri = "file:/path/to/file"
+    src_uri = "http://online.com/api/source"
 
     %{
       conn: conn(),
       resp: resp,
-      sink_uri: "file:/path/to/file",
-      src_uri: "http://online.com/api/source"
+      sink_uri: sink_uri,
+      src_uri: src_uri,
+      init_opts: SourceSink.init(source: src_uri, sink: sink_uri)
     }
   end
 
@@ -45,7 +48,7 @@ defmodule Stow.Pipeline.SourceSinkTest do
         context.resp
       end)
 
-      SourceSink.call(context.conn, source: context.src_uri, sink: context.sink_uri)
+      SourceSink.call(context.conn, context.init_opts)
     end
 
     test "writes source to file", context do
@@ -56,7 +59,7 @@ defmodule Stow.Pipeline.SourceSinkTest do
 
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^body, [] -> :ok end)
-      SourceSink.call(context.conn, source: context.src_uri, sink: context.sink_uri)
+      SourceSink.call(context.conn, context.init_opts)
     end
 
     test "http response", %{conn: conn, sink_uri: sink_uri, src_uri: src_uri} = context do
@@ -83,7 +86,7 @@ defmodule Stow.Pipeline.SourceSinkTest do
         context.resp
       end)
 
-      assert %Conn{} = conn = SourceSink.call(context.conn, source: src_uri, sink: sink_uri)
+      assert %Conn{} = conn = SourceSink.call(context.conn, context.init_opts)
 
       assert %Pipeline{
                source: %Source{
@@ -104,17 +107,17 @@ defmodule Stow.Pipeline.SourceSinkTest do
     end
 
     test "without both source and sink options", %{conn: conn} do
-      assert %Conn{} = conn = SourceSink.call(conn, [])
+      assert %Conn{} = conn = SourceSink.call(conn, SourceSink.init([]))
       assert %{halted: true, status: nil, state: :unset} = conn
     end
 
     test "when only source is given", %{conn: conn} = context do
-      assert %Conn{} = conn = SourceSink.call(conn, source: context.src_uri)
+      assert %Conn{} = conn = SourceSink.call(conn, SourceSink.init(source: context.src_uri))
       assert %{halted: true, status: nil, state: :unset} = conn
     end
 
     test "when only sink is given", %{conn: conn} = context do
-      assert %Conn{} = conn = SourceSink.call(conn, sink: context.sink_uri)
+      assert %Conn{} = conn = SourceSink.call(conn, SourceSink.init(sink: context.sink_uri))
       assert %{halted: true, status: nil, state: :unset} = conn
     end
 
@@ -122,13 +125,13 @@ defmodule Stow.Pipeline.SourceSinkTest do
       source_field = Source.new(context.src_uri)
       sink_field = Sink.new(context.sink_uri)
 
-      conn = SourceSink.call(context.conn, [])
+      conn = SourceSink.call(context.conn, SourceSink.init([]))
       assert %{} = conn.private
 
-      conn = SourceSink.call(context.conn, source: context.src_uri)
+      conn = SourceSink.call(context.conn, SourceSink.init(source: context.src_uri))
       assert %Pipeline{source: ^source_field, sink: nil} = conn.private.stow
 
-      conn = SourceSink.call(context.conn, sink: context.sink_uri)
+      conn = SourceSink.call(context.conn, SourceSink.init(sink: context.sink_uri))
       assert %Pipeline{source: nil, sink: ^sink_field} = conn.private.stow
     end
   end

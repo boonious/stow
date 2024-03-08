@@ -48,7 +48,7 @@ defmodule Stow.Plug.SinkTest do
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^data, [:compressed] -> :ok end)
 
-      assert %Conn{} = conn = __MODULE__.FileSinkTestPlug.call(context.conn, [])
+      assert %Conn{} = conn = __MODULE__.FileSinkTestPlug.call(context.conn, Sink.init([]))
       assert %SinkStruct{uri: ^uri_s, status: :ok} = conn.private.stow.sink
     end
 
@@ -60,7 +60,8 @@ defmodule Stow.Plug.SinkTest do
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^data, [] -> :ok end)
 
-      assert %Conn{} = conn = Sink.call(conn, uri: uri, data: data)
+      opts = Sink.init(uri: uri, data: data)
+      assert %Conn{} = conn = Sink.call(conn, opts)
       assert %SinkStruct{uri: ^uri, status: :ok} = conn.private.stow.sink
     end
 
@@ -71,7 +72,7 @@ defmodule Stow.Plug.SinkTest do
 
       FileIO |> expect(:write, fn ^path, ^data, [:compressed] -> :ok end)
 
-      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %Conn{} = conn = Sink.call(conn, Sink.init([]))
       assert %SinkStruct{uri: ^uri_s, status: :ok, options: ^options} = conn.private.stow.sink
     end
 
@@ -80,11 +81,12 @@ defmodule Stow.Plug.SinkTest do
       path = [base_dir, path]
       dir = path |> Path.dirname()
 
-      opts = [
-        uri: context.uri_s,
-        data: data,
-        options: %{"file" => [base_dir: base_dir, modes: [:compressed]]}
-      ]
+      opts =
+        Sink.init(
+          uri: context.uri_s,
+          data: data,
+          options: %{"file" => [base_dir: base_dir, modes: [:compressed]]}
+        )
 
       FileIO |> expect(:exists?, fn ^dir -> true end)
       FileIO |> expect(:write, fn ^path, ^data, [:compressed] -> :ok end)
@@ -102,7 +104,7 @@ defmodule Stow.Plug.SinkTest do
       conn = resp(conn, 200, data)
       conn = update_private(conn, :sink, SinkStruct.new("no_scheme_uri"))
 
-      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %Conn{} = conn = Sink.call(conn, Sink.init([]))
       assert %SinkStruct{uri: "no_scheme_uri", status: {:error, :einval}} = conn.private.stow.sink
     end
 
@@ -110,13 +112,13 @@ defmodule Stow.Plug.SinkTest do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
 
       conn = resp(conn, 200, data)
-      assert_raise(ArgumentError, fn -> Sink.call(conn, []) end)
+      assert_raise(ArgumentError, fn -> Sink.call(conn, Sink.init([])) end)
     end
 
     test "without data option and respond body", %{conn: conn, uri_s: uri_s} do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
 
-      assert %Conn{} = conn = Sink.call(conn, uri: uri_s)
+      assert %Conn{} = conn = Sink.call(conn, Sink.init(uri: uri_s))
       assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn.private.stow.sink
     end
 
@@ -125,7 +127,7 @@ defmodule Stow.Plug.SinkTest do
 
       conn = resp(conn, 500, "Internal Server Error")
       conn = update_private(conn, :sink, SinkStruct.new(uri_s))
-      assert %Conn{} = conn = Sink.call(conn, [])
+      assert %Conn{} = conn = Sink.call(conn, Sink.init([]))
       assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn.private.stow.sink
     end
   end

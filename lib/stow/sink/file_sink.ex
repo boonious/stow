@@ -27,12 +27,11 @@ defmodule Stow.Sink.FileSink do
   ```
   """
   @impl true
-  def put(%URI{scheme: "file", host: nil, path: path} = uri, data, opts) when not is_nil(path) do
+  def put(%URI{scheme: "file", host: nil, path: path}, data, opts) when not is_nil(path) do
     with opts <- validate_opts(opts),
          path <- [base_dir(opts), path],
-         :ok <- maybe_create_dir(path),
-         :ok <- write_file(path, data, opts) do
-      {:ok, uri}
+         :ok <- maybe_create_dir(path) do
+      write_file(path, data, opts)
     end
   end
 
@@ -65,9 +64,9 @@ defmodule Stow.Sink.FileSink do
   ```
   """
   @impl true
-  def delete(%URI{scheme: "file", host: nil, path: path} = uri, opts) when not is_nil(path) do
+  def delete(%URI{scheme: "file", host: nil, path: path}, opts) when not is_nil(path) do
     case [validate_opts(opts) |> base_dir(), path] |> @file_io.rm() do
-      :ok -> {:ok, uri}
+      :ok -> :ok
       {:error, reason} -> {:error, reason}
     end
   end

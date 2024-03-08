@@ -12,11 +12,12 @@ defmodule Stow.Pipeline.SourceSink do
   plug(Source)
   plug(Sink)
 
+  @impl true
+  def init(opts), do: Keyword.validate!(opts, @fields)
+
   # TODO: passing opts to source/sink, default opts in source/sink
   @impl true
   def call(conn, opts) do
-    opts = Keyword.validate!(opts, @fields)
-
     @fields
     |> Enum.map(&{&1, Keyword.get(opts, &1)})
     |> then(&set_private_fields(conn, &1))
