@@ -11,9 +11,8 @@ defmodule Stow.Sink.FileSink do
 
   @behaviour Stow.Sink
 
-  import Stow.Pipeline, only: [base_dir: 1]
+  import Stow.Config, only: [base_dir: 1, file_io: 0]
 
-  @file_io Application.compile_env(:stow, :file_io, Elixir.File)
   @options [:base_dir, :modes, :file_io]
 
   @doc """
@@ -42,15 +41,15 @@ defmodule Stow.Sink.FileSink do
   defp maybe_create_dir(path) do
     dir = path |> Path.dirname()
 
-    case dir |> @file_io.exists?() do
+    case dir |> file_io().exists?() do
       true -> :ok
-      false -> @file_io.mkdir_p(dir)
+      false -> file_io().mkdir_p(dir)
     end
   end
 
   defp write_file(path, data, opts) do
     file_modes = Keyword.get(opts, :modes, [])
-    Keyword.get(opts, :file_io, @file_io).write(path, data, file_modes)
+    Keyword.get(opts, :file_io, file_io()).write(path, data, file_modes)
   end
 
   @doc """
@@ -65,7 +64,7 @@ defmodule Stow.Sink.FileSink do
   """
   @impl true
   def delete(%URI{scheme: "file", host: nil, path: path}, opts) when not is_nil(path) do
-    case [validate_opts(opts) |> base_dir(), path] |> @file_io.rm() do
+    case [validate_opts(opts) |> base_dir(), path] |> file_io().rm() do
       :ok -> :ok
       {:error, reason} -> {:error, reason}
     end

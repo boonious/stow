@@ -3,7 +3,7 @@ defmodule Stow.Plug.SinkTest do
   use Plug.Test
 
   import Hammox
-  import Stow.Pipeline, only: [base_dir: 0]
+  import Stow.Config, only: [base_dir: 0]
   import Stow.Plug.Utils, only: [update_private: 3]
 
   alias Plug.Conn
