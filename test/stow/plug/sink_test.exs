@@ -95,17 +95,25 @@ defmodule Stow.Plug.SinkTest do
     end
   end
 
-  describe "sink errors" do
+  describe "sink errors and halts" do
     test "on malformed file uri", %{conn: conn, data: data} do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
-      assert %Conn{} = conn = Sink.call(conn, uri: "no_scheme_uri", data: "")
-      assert %SinkStruct{uri: "no_scheme_uri", status: {:error, :einval}} = conn.private.stow.sink
+      assert %Conn{} = conn_resp = Sink.call(conn, uri: "no_scheme_uri", data: "")
+
+      assert %SinkStruct{uri: "no_scheme_uri", status: {:error, :einval}} =
+               conn_resp.private.stow.sink
+
+      assert conn_resp.halted == true
 
       conn = resp(conn, 200, data)
       conn = update_private(conn, :sink, SinkStruct.new("no_scheme_uri"))
 
-      assert %Conn{} = conn = Sink.call(conn, Sink.init([]))
-      assert %SinkStruct{uri: "no_scheme_uri", status: {:error, :einval}} = conn.private.stow.sink
+      assert %Conn{} = conn_resp = Sink.call(conn, Sink.init([]))
+
+      assert %SinkStruct{uri: "no_scheme_uri", status: {:error, :einval}} =
+               conn_resp.private.stow.sink
+
+      assert conn_resp.halted == true
     end
 
     test "when no file uri available", %{conn: conn, data: data} do
@@ -118,17 +126,19 @@ defmodule Stow.Plug.SinkTest do
     test "without data option and respond body", %{conn: conn, uri_s: uri_s} do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
 
-      assert %Conn{} = conn = Sink.call(conn, Sink.init(uri: uri_s))
-      assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn.private.stow.sink
+      assert %Conn{} = conn_resp = Sink.call(conn, Sink.init(uri: uri_s))
+      assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn_resp.private.stow.sink
+      assert conn_resp.halted == true
     end
 
-    test "when respond body invalid", %{conn: conn, uri_s: uri_s} do
+    test "on invalid, non-200 response body", %{conn: conn, uri_s: uri_s} do
       FileIO |> expect(:write, 0, fn _path, _data, [] -> :ok end)
 
       conn = resp(conn, 500, "Internal Server Error")
       conn = update_private(conn, :sink, SinkStruct.new(uri_s))
-      assert %Conn{} = conn = Sink.call(conn, Sink.init([]))
-      assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn.private.stow.sink
+      assert %Conn{} = conn_resp = Sink.call(conn, Sink.init([]))
+      assert %SinkStruct{uri: ^uri_s, status: {:error, :einval}} = conn_resp.private.stow.sink
+      assert conn_resp.halted == true
     end
   end
 end

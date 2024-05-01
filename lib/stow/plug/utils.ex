@@ -4,7 +4,7 @@ defmodule Stow.Plug.Utils do
   alias Plug.Conn
   alias Stow.{Pipeline, Sink, Source}
 
-  import Plug.Conn, only: [halt: 1, resp: 3]
+  import Plug.Conn, only: [resp: 3]
 
   def fetch_uri(conn, opts, {field, schemes}) when is_list(opts) do
     fetch_uri(conn, field, schemes) |> update_status(conn, field)
@@ -119,14 +119,12 @@ defmodule Stow.Plug.Utils do
     |> put_headers(headers, :resp)
     |> set_private_status(field, {:error, :non_200_status})
     |> resp(non_200, body)
-    |> halt()
     |> then(&{:error, &1})
   end
 
   def update_status({:error, _} = error, conn, field) do
     conn
     |> set_private_status(field, error)
-    |> halt()
     |> then(&{:error, &1})
   end
 

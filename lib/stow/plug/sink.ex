@@ -9,6 +9,8 @@ defmodule Stow.Plug.Sink do
   import Utils,
     only: [fetch_opts: 3, fetch_uri: 3, set_private_opts: 3, update_private: 3, update_status: 3]
 
+  import Plug.Conn, only: [halt: 1]
+
   @plug_opts [:uri, :data, :options]
   @schemes ["file"]
 
@@ -23,7 +25,7 @@ defmodule Stow.Plug.Sink do
          {:ok, conn} <- put_data(conn, uri, data) do
       conn
     else
-      {:error, conn} -> conn
+      {:error, conn} -> conn |> halt()
     end
   end
 

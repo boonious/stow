@@ -5,6 +5,8 @@ defmodule Stow.Plug.Source do
   alias Stow.Plug.Utils
   alias Stow.Source
 
+  import Plug.Conn, only: [halt: 1]
+
   import Utils,
     only: [
       fetch_opts: 2,
@@ -28,7 +30,7 @@ defmodule Stow.Plug.Source do
          {:ok, conn} <- source_data(conn) do
       conn
     else
-      {:error, conn} -> conn
+      {:error, conn} -> conn |> halt()
     end
   end
 

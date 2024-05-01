@@ -116,6 +116,7 @@ defmodule Stow.Plug.SourceTest do
       assert %Conn{host: ^host, request_path: ^path, port: ^port, query_string: ^query} = conn
       assert conn.method == "GET"
       assert conn.scheme |> to_string() == scheme
+      assert conn.halted == false
     end
 
     test "return conn with source http response", %{conn: conn, resp: resp, uri: uri} do
@@ -125,6 +126,7 @@ defmodule Stow.Plug.SourceTest do
       assert %Conn{} = conn = Source.call(conn, Source.init(uri: uri))
       assert %Conn{resp_body: ^body, status: ^status} = conn
       assert header in conn.resp_headers
+      assert conn.halted == false
     end
 
     test "return conn with :set state", %{conn: conn, resp: resp, uri: uri} do
@@ -132,6 +134,7 @@ defmodule Stow.Plug.SourceTest do
 
       assert %Conn{} = conn = Source.call(conn, Source.init(uri: uri))
       assert conn.state == :set
+      assert conn.halted == false
     end
 
     test "when source response is non 200", %{conn: conn, uri: uri} do
@@ -139,28 +142,35 @@ defmodule Stow.Plug.SourceTest do
       |> expect(:dispatch, fn _conn, [] -> {:ok, {500, [], "Internal Server Error"}} end)
 
       assert %Conn{halted: true} = conn = Source.call(conn, Source.init(uri: uri))
+      assert conn.state == :set
 
       assert %SourceStruct{uri: ^uri, status: {:error, :non_200_status}} =
                conn.private.stow.source
     end
 
-    test "when source is down", %{conn: conn, uri: uri} do
+    test "error and halted status when source is down", %{conn: conn, uri: uri} do
       HttpClient |> expect(:dispatch, fn _conn, [] -> {:error, :econnrefused} end)
 
-      assert %Conn{halted: true} = conn = Source.call(conn, Source.init(uri: uri))
-      assert %SourceStruct{uri: ^uri, status: {:error, :econnrefused}} = conn.private.stow.source
-      assert conn.state != :set
+      assert %Conn{halted: true} = conn_resp = Source.call(conn, Source.init(uri: uri))
+
+      assert %SourceStruct{uri: ^uri, status: {:error, :econnrefused}} =
+               conn_resp.private.stow.source
+
+      assert conn_resp.state != :set
+      assert conn_resp.halted == true
     end
 
-    test "error status on unsupported source", %{conn: conn} do
+    test "error and halted status on unsupported source", %{conn: conn} do
       uri = "file:/not/http/source"
-      assert %Conn{halted: true} = conn = Source.call(conn, Source.init(uri: uri))
-      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.source
+      assert %Conn{halted: true} = conn_resp = Source.call(conn, Source.init(uri: uri))
+      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn_resp.private.stow.source
+      assert conn_resp.halted == true
 
       conn = update_private(conn, :source, SourceStruct.new(uri))
-      assert %Conn{halted: true} = conn = Source.call(conn, Source.init([]))
-      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn.private.stow.source
-      assert conn.state != :set
+      assert %Conn{halted: true} = conn_resp = Source.call(conn, Source.init([]))
+      assert %SourceStruct{uri: ^uri, status: {:error, :einval}} = conn_resp.private.stow.source
+      assert conn_resp.state != :set
+      assert conn_resp.halted == true
     end
 
     test "raises when no http uri available", %{conn: conn} do
