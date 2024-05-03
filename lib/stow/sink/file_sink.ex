@@ -39,7 +39,7 @@ defmodule Stow.Sink.FileSink do
 
   defp maybe_create_dir(path, opts) do
     file_io = Keyword.get(opts, :file_io)
-    dir = path |> Path.dirname()
+    dir = path |> Path.join() |> Path.dirname()
 
     case dir |> file_io.exists?() do
       true -> :ok

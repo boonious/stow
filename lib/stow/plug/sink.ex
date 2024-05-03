@@ -36,7 +36,7 @@ defmodule Stow.Plug.Sink do
   defp fetch_data(_conn, data) when is_binary(data) or is_list(data), do: {:ok, data}
 
   # opt2; data from conn resp body
-  defp fetch_data(%Conn{resp_body: body, state: :set, status: 200}, nil) do
+  defp fetch_data(%Conn{resp_body: body, state: :set, status: 200, halted: false}, nil) do
     {:ok, body}
   end
 
