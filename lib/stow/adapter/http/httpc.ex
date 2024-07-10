@@ -1,9 +1,9 @@
-defmodule Stow.Http.Client.Httpc do
+defmodule Stow.Adapter.Http.Httpc do
   @moduledoc false
-  @behaviour Stow.Http.Client
+  @behaviour Stow.Adapter
 
-  import Stow.Http.Client, only: [build_req_url: 1]
-  alias Plug.Conn
+  import Stow.URI, only: [to_iolist: 1]
+  alias Stow.Conn
 
   @http_options [
     :timeout,
@@ -16,16 +16,15 @@ defmodule Stow.Http.Client.Httpc do
   ]
 
   @impl true
-  def dispatch(%Conn{method: method} = conn, options) when method in ["GET"] do
-    with {http_opts, opts} <- split_options(options, {[], []}, conn.scheme),
-         headers <- charlist_headers(conn.req_headers),
-         url <- build_req_url(conn) do
-      :httpc.request(:get, {url |> to_charlist(), headers}, http_opts, opts)
+  def dispatch(%Conn{method: :get} = conn) do
+    with {http_opts, opts} <- split_options(conn.opts, {[], []}, conn.uri.scheme),
+         headers <- maybe_to_charlist(conn.headers) do
+      :httpc.request(:get, {to_iolist(conn.uri), headers}, http_opts, opts)
       |> handle_response()
     end
   end
 
-  def dispatch(_conn, _options), do: {:error, :not_supported}
+  def dispatch(_conn), do: {:error, :not_supported}
 
   defp handle_response({:ok, {{[?H, ?T, ?T, ?P | _], status, _}, headers, body}}) do
     {:ok,
@@ -35,8 +34,9 @@ defmodule Stow.Http.Client.Httpc do
 
   defp handle_response({:error, reason}), do: {:error, reason}
 
-  defp split_options([], {http_opts, opts}, :http), do: {http_opts, opts}
-  defp split_options([], {http_opts, opts}, :https), do: {http_opts |> set_ssl_opt(), opts}
+  defp split_options(nil, {http_opts, opts}, _), do: {http_opts, opts}
+  defp split_options([], {http_opts, opts}, "http"), do: {http_opts, opts}
+  defp split_options([], {http_opts, opts}, "https"), do: {http_opts |> set_ssl_opt(), opts}
 
   defp split_options([{k, v} | t], {http_opts, opts}, scheme) do
     case k in @http_options do
@@ -45,8 +45,11 @@ defmodule Stow.Http.Client.Httpc do
     end
   end
 
-  defp charlist_headers(headers) do
-    Enum.map(headers, fn {k, v} -> {to_charlist(k), to_charlist(v)} end)
+  defp maybe_to_charlist([]), do: []
+  defp maybe_to_charlist([{[k | _], _v}, _] = headers) when is_integer(k), do: headers
+
+  defp maybe_to_charlist(headers) do
+    Enum.map(headers, fn {k, v} -> {to_charlist(k), v} end)
   end
 
   defp set_ssl_opt(http_opts) do

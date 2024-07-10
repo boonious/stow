@@ -3,8 +3,6 @@ defmodule Stow.Source do
   Behaviour for fetching data from various URI sources.
   """
 
-  alias Stow.Http.Client, as: HttpClient
-
   @enforce_keys [:uri]
   defstruct [:uri, :status, :options]
 

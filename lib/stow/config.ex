@@ -1,7 +1,7 @@
 defmodule Stow.Config do
   @moduledoc false
-  alias Stow.Http.Client
 
+  @default_adapter Stow.Adapter.Http.Httpc
   @default_base_dir "./stow_data"
   @base_dir Application.compile_env(:stow, :base_dir)
   @file_io Application.compile_env(:stow, :file_io, Elixir.File)
@@ -12,15 +12,14 @@ defmodule Stow.Config do
       default_base_dir()
   end
 
+  def default_adapter, do: @default_adapter
   def default_base_dir, do: @default_base_dir
 
   def file_io, do: @file_io
 
-  def http_client(client \\ "httpc") do
-    Application.get_env(:stow, :http_client, runtime_client(client))
+  def adapter(scheme \\ "http") do
+    System.get_env("LB_STOW_ADAPTER")[scheme] || Application.get_env(:stow, :adapter)[scheme] || default_adapter()
   end
-
-  defp runtime_client(client), do: client |> Macro.camelize() |> then(&Module.concat(Client, &1))
 
   def default_file_sink_opts do
     [
