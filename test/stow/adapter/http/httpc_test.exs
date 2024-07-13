@@ -4,6 +4,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
 
   alias Stow.Adapter.Http.Httpc
   alias Stow.Conn
+  alias Stow.Response
 
   setup do
     bypass = Bypass.open()
@@ -26,8 +27,16 @@ defmodule Stow.Adapter.Http.HttpcTest do
     }
   end
 
-  describe "dispatch/1 for uri" do
-    test "with request path and query string", %{bypass: bypass, conn: conn} do
+  defp assert_ok_response(response) do
+    assert %Response{} = response
+    assert {"server", "Cowboy"} in response.headers
+    assert response.status == 200
+    assert response.body == "getting a response"
+    assert response.state == :ok
+  end
+
+  describe "dispatch/1" do
+    test "request path and query string", %{bypass: bypass, conn: conn} do
       Bypass.expect(bypass, fn conn ->
         request_url = Plug.Conn.request_url(conn)
         assert request_url == "http://localhost:#{bypass.port}/request/path?foo=bar"
@@ -36,10 +45,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
         Plug.Conn.resp(conn, 200, "getting a response")
       end)
 
-      assert {:ok, {status, headers, body}} = conn |> Httpc.dispatch()
-      assert status == 200
-      assert {"server", "Cowboy"} in headers
-      assert body == "getting a response"
+      conn |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "without request path and query string ", %{bypass: bypass, conn: conn, uri: uri} do
@@ -52,10 +58,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
       end)
 
       uri = %{uri | query: "", path: ""}
-      conn = %{conn | uri: uri}
-      assert {:ok, {status, _headers, body}} = conn |> Httpc.dispatch()
-      assert status == 200
-      assert body == "getting a response"
+      %{conn | uri: uri} |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "without query string ", %{bypass: bypass, conn: conn, uri: uri} do
@@ -68,10 +71,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
       end)
 
       uri = %{uri | query: ""}
-      conn = %{conn | uri: uri}
-      assert {:ok, {status, _headers, body}} = conn |> Httpc.dispatch()
-      assert status == 200
-      assert body == "getting a response"
+      %{conn | uri: uri} |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "in https scheme", %{conn: conn, opts: opts, uri: uri} do
@@ -89,7 +89,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
       conn = %{conn | opts: opts}
 
       Bypass.expect(bypass, fn conn -> Plug.Conn.resp(conn, 200, "getting a response") end)
-      assert {:ok, _} = conn |> Httpc.dispatch()
+      conn |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "with charlist (native) request headers", %{bypass: bypass, conn: conn} do
@@ -98,8 +98,6 @@ defmodule Stow.Adapter.Http.HttpcTest do
         {~c"accept-Language", ~c"en-US,en;q=0.5"}
       ]
 
-      conn = %{conn | headers: req_headers}
-
       Bypass.expect(bypass, fn conn ->
         assert {"accept", "application/json,text/html"} in conn.req_headers
         assert {"accept-language", "en-US,en;q=0.5"} in conn.req_headers
@@ -107,7 +105,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
         Plug.Conn.resp(conn, 200, "getting a response")
       end)
 
-      assert {:ok, _} = conn |> Httpc.dispatch()
+      %{conn | headers: req_headers} |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "with binary request headers", %{bypass: bypass, conn: conn} do
@@ -116,8 +114,6 @@ defmodule Stow.Adapter.Http.HttpcTest do
         {"accept-Language", "en-US,en;q=0.5"}
       ]
 
-      conn = %{conn | headers: req_headers}
-
       Bypass.expect(bypass, fn conn ->
         assert {"accept", "application/json,text/html"} in conn.req_headers
         assert {"accept-language", "en-US,en;q=0.5"} in conn.req_headers
@@ -125,7 +121,7 @@ defmodule Stow.Adapter.Http.HttpcTest do
         Plug.Conn.resp(conn, 200, "getting a response")
       end)
 
-      assert {:ok, _} = conn |> Httpc.dispatch()
+      %{conn | headers: req_headers} |> Httpc.dispatch() |> assert_ok_response()
     end
 
     test "returns error on invalid headers", %{conn: conn} do
@@ -134,8 +130,8 @@ defmodule Stow.Adapter.Http.HttpcTest do
         {"accept-Language", "en-US,en;q=0.5"}
       ]
 
-      conn = %{conn | headers: req_headers}
-      assert {:error, {:headers_error, :invalid_field}} = conn |> Httpc.dispatch()
+      assert %Response{} = response = %{conn | headers: req_headers} |> Httpc.dispatch()
+      assert response.state == {:error, {:headers_error, :invalid_field}}
     end
   end
 

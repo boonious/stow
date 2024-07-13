@@ -3,6 +3,8 @@ defmodule Stow.Adapter.Http.Httpc do
   @behaviour Stow.Adapter
 
   import Stow.URI, only: [to_iolist: 1]
+  import Stow.ResponseHandler
+
   alias Stow.Conn
 
   @http_options [
@@ -19,20 +21,11 @@ defmodule Stow.Adapter.Http.Httpc do
   def dispatch(%Conn{method: :get} = conn) do
     with {http_opts, opts} <- split_options(conn.opts, {[], []}, conn.uri.scheme),
          headers <- maybe_to_charlist(conn.headers) do
-      :httpc.request(:get, {to_iolist(conn.uri), headers}, http_opts, opts)
-      |> handle_response()
+      :httpc.request(:get, {to_iolist(conn.uri), headers}, http_opts, opts) |> to_response()
     end
   end
 
   def dispatch(_conn), do: {:error, :not_supported}
-
-  defp handle_response({:ok, {{[?H, ?T, ?T, ?P | _], status, _}, headers, body}}) do
-    {:ok,
-     {status, Enum.map(headers, fn {k, v} -> {to_string(k), to_string(v)} end),
-      body |> IO.iodata_to_binary()}}
-  end
-
-  defp handle_response({:error, reason}), do: {:error, reason}
 
   defp split_options(nil, {http_opts, opts}, _), do: {http_opts, opts}
   defp split_options([], {http_opts, opts}, "http"), do: {http_opts, opts}

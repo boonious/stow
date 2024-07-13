@@ -14,7 +14,7 @@ defmodule Stow.Source do
 
   @type conn :: Plug.Conn.t()
 
-  @callback get(conn(), map()) :: HttpClient.response()
+  @callback get(conn(), map()) :: term()
 
   def new(uri, options \\ nil), do: %__MODULE__{uri: uri, options: options}
 end
