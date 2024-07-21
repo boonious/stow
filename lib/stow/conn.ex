@@ -1,7 +1,7 @@
 defmodule Stow.Conn do
   @moduledoc false
 
-  defguard binary_header?(h) when is_binary(elem(h, 0)) and is_binary(elem(h, 1))
+  import Stow.Adapter, only: [impl: 1]
 
   @type header :: {charlist(), charlist()} | {binary(), binary()}
   @type header_key :: iodata()
@@ -13,7 +13,7 @@ defmodule Stow.Conn do
           halted: boolean(),
           headers: [header()],
           method: atom(),
-          opts: nil | keyword(),
+          opts: keyword(),
           status: nil | non_neg_integer(),
           uri: Stow.URI.t()
         }
@@ -21,15 +21,25 @@ defmodule Stow.Conn do
   defstruct [
     :adapter,
     :body,
-    :opts,
     :status,
     :uri,
     halted: false,
     headers: [],
-    method: :get
+    method: :get,
+    opts: []
   ]
 
-  def new(uri, adapter \\ Stow.Adapter.impl())
-  def new(%URI{} = uri, adapter), do: %__MODULE__{uri: Stow.URI.new(uri), adapter: adapter}
-  def new("http" <> _ = uri, adapter), do: %__MODULE__{uri: Stow.URI.new(uri), adapter: adapter}
+  def new(uri, method \\ :get)
+
+  def new(%URI{} = uri, method) do
+    %__MODULE__{uri: Stow.URI.new(uri), method: method, adapter: impl(uri.scheme)}
+  end
+
+  def new("http" <> _ = uri, method) do
+    %__MODULE__{uri: Stow.URI.new(uri), method: method, adapter: impl("http")}
+  end
+
+  def new("file:/" <> _ = uri, method) do
+    %__MODULE__{uri: Stow.URI.new(uri), method: method, adapter: impl("file")}
+  end
 end

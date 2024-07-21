@@ -1,4 +1,10 @@
 defmodule Stow.URI do
+  defmodule MalformedURIError do
+    defexception message: "invalid file uri"
+
+    def exception(uri), do: %MalformedURIError{message: "invalid file uri (#{inspect(uri)})"}
+  end
+
   @moduledoc false
 
   defstruct [:host, :port, :scheme, path: "", query: ""]
