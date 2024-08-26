@@ -1,2 +1,2 @@
 Hammox.defmock(Stow.FileIOMock, for: Stow.FileIO)
-Hammox.defmock(Stow.AdapterMock, for: Stow.Adapter)
+Hammox.defmock(Stow.Adapter.HttpMock, for: Stow.Adapter)

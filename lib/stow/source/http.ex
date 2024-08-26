@@ -6,7 +6,7 @@ defmodule Stow.Source.Http do
   @behaviour Stow
 
   @impl true
-  def call(%Stow{conn: %{method: :get} = conn, type: :source} = stow) do
-    conn |> stow.conn.adapter.dispatch()
+  def call(%Stow.Conn{method: :get} = conn) do
+    conn |> conn.adapter.dispatch()
   end
 end

@@ -21,7 +21,7 @@ defmodule Stow.Sink.FileTest do
 
     %{
       base_dir: base_dir,
-      stow: %Stow{conn: conn, type: :sink}
+      conn: conn
     }
   end
 
@@ -31,104 +31,94 @@ defmodule Stow.Sink.FileTest do
       :ok
     end
 
-    test "binary to file", %{base_dir: dir, stow: stow} do
-      data = stow.conn.body
-      %{path: path} = stow.conn.uri
+    test "binary to file", %{base_dir: dir, conn: conn} do
+      data = conn.body
+      %{path: path} = conn.uri
 
       FileIOMock |> expect(:write, fn [^dir, ^path], ^data, [] -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "io list to file", %{stow: stow} do
+    test "io list to file", %{conn: conn} do
       data = ["hi", 74, 97, 109, 101, 115]
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:body)], data)
+      conn = put_in(conn, [Access.key!(:body)], data)
 
       FileIOMock |> expect(:write, fn _path, ^data, [] -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "create non-existing file sub-directories", %{base_dir: base_dir, stow: stow} do
-      data = stow.conn.body
-      path = stow.conn.uri.path
+    test "create non-existing file sub-directories", %{base_dir: base_dir, conn: conn} do
+      data = conn.body
+      path = conn.uri.path
       dir = [base_dir, path] |> Path.dirname()
 
       FileIOMock |> expect(:exists?, fn ^dir -> false end)
       FileIOMock |> expect(:mkdir_p, fn ^dir -> :ok end)
       FileIOMock |> expect(:write, fn [^base_dir, ^path], ^data, [] -> :ok end)
 
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "writes to configured dir without base_dir option", %{stow: stow} do
-      data = stow.conn.body
-      path = [Application.get_env(:stow, :base_dir), stow.conn.uri.path]
+    test "writes to configured dir without base_dir option", %{conn: conn} do
+      data = conn.body
+      path = [Application.get_env(:stow, :base_dir), conn.uri.path]
 
       FileIOMock |> expect(:write, fn ^path, ^data, [] -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "writes to an opted base_dir", %{stow: stow} do
-      data = stow.conn.body
+    test "writes to an opted base_dir", %{conn: conn} do
+      data = conn.body
       base_dir = "./this/is/an/alternative/base_dir"
-      path = [base_dir, stow.conn.uri.path]
+      path = [base_dir, conn.uri.path]
 
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:opts)], base_dir: base_dir)
+      conn = put_in(conn, [Access.key!(:opts)], base_dir: base_dir)
 
       FileIOMock |> expect(:write, fn ^path, ^data, [] -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "with file modes option", %{base_dir: dir, stow: stow} do
-      data = stow.conn.body
-      path = [dir, stow.conn.uri.path]
+    test "with file modes option", %{base_dir: dir, conn: conn} do
+      data = conn.body
+      path = [dir, conn.uri.path]
       modes_opt = [:compressed, :append]
-      opts = Keyword.put_new(stow.conn.opts, :modes, modes_opt)
+      opts = Keyword.put_new(conn.opts, :modes, modes_opt)
 
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:opts)], opts)
+      conn = put_in(conn, [Access.key!(:opts)], opts)
 
       FileIOMock |> expect(:write, fn ^path, ^data, ^modes_opt -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "returns error given invalid data", %{stow: stow} do
-      invalid_data = %{"not" => "valid io data"}
-      opts = [file_io: File, base_dir: "."]
-
-      conn = %{stow.conn | opts: opts, body: invalid_data}
-      stow = %{stow | conn: conn}
-
-      assert {:error, :badarg} = FileSink.call(stow)
-    end
-
-    test "raises on invalid file uri", %{stow: stow} do
+    test "raises on invalid file uri", %{conn: conn} do
       invalid_uri = URI.new!("file:")
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:uri)], invalid_uri)
+      conn = put_in(conn, [Access.key!(:uri)], invalid_uri)
 
-      assert_raise(Stow.URI.MalformedURIError, ~r/invalid file uri/, fn -> FileSink.call(stow) end)
+      assert_raise(Stow.URI.MalformedURIError, ~r/invalid file uri/, fn -> FileSink.call(conn) end)
 
       invalid_uri = URI.new!("s3://bucket/path/to/file")
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:uri)], invalid_uri)
+      conn = put_in(conn, [Access.key!(:uri)], invalid_uri)
 
-      assert_raise(Stow.URI.MalformedURIError, ~r/invalid file uri/, fn -> FileSink.call(stow) end)
+      assert_raise(Stow.URI.MalformedURIError, ~r/invalid file uri/, fn -> FileSink.call(conn) end)
     end
   end
 
   describe "call/1 method delete" do
-    test "existing file", %{base_dir: dir, stow: stow} do
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:method)], :delete)
-      path = [dir, stow.conn.uri.path]
+    test "existing file", %{base_dir: dir, conn: conn} do
+      conn = put_in(conn, [Access.key!(:method)], :delete)
+      path = [dir, conn.uri.path]
 
       FileIOMock |> expect(:rm, fn ^path -> :ok end)
-      assert :ok == FileSink.call(stow)
+      assert :ok == FileSink.call(conn)
     end
 
-    test "returns error tuple on deletion error", %{base_dir: dir, stow: stow} do
-      stow = put_in(stow, [Access.key!(:conn), Access.key!(:method)], :delete)
-      path = [dir, stow.conn.uri.path]
+    test "returns error tuple on deletion error", %{base_dir: dir, conn: conn} do
+      conn = put_in(conn, [Access.key!(:method)], :delete)
+      path = [dir, conn.uri.path]
 
       # file does not exist
       FileIOMock |> expect(:rm, fn ^path -> {:error, :enoent} end)
-      assert {:error, :enoent} = FileSink.call(stow)
+      assert {:error, :enoent} = FileSink.call(conn)
     end
   end
 end

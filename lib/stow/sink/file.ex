@@ -12,18 +12,18 @@ defmodule Stow.Sink.File do
   @behaviour Stow
 
   @doc """
-  Write or delete a local file given a `Stow.Conn.t()` connection.
+  Put or delete a local file given a `Stow.Conn.t()` connection.
   """
   @impl true
-  def call(%Stow{conn: %{method: :put} = conn, type: :sink} = stow) do
+  def call(%Stow.Conn{method: :put} = conn) do
     case {conn.uri.path, conn.uri.scheme} do
-      {path, "file"} when path != nil -> conn |> stow.conn.adapter.dispatch()
+      {path, "file"} when path != nil -> conn |> conn.adapter.dispatch()
       _ -> raise(Stow.URI.MalformedURIError.exception(conn.uri))
     end
   end
 
   @impl true
-  def call(%Stow{conn: %{method: :delete} = conn, type: :sink} = stow) do
-    conn |> stow.conn.adapter.dispatch()
+  def call(%Stow.Conn{method: :delete} = conn) do
+    conn |> conn.adapter.dispatch()
   end
 end

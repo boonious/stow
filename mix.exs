@@ -33,7 +33,6 @@ defmodule Stow.MixProject do
   defp deps do
     [
       {:castore, "~> 1.0"},
-      {:plug, "~> 1.15"},
 
       # for tests
       {:bypass, "~> 2.1", only: :test},
