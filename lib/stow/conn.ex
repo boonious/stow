@@ -42,4 +42,8 @@ defmodule Stow.Conn do
   def new("file:/" <> _ = uri, method) do
     %__MODULE__{uri: Stow.URI.new(uri), method: method, adapter: impl("file")}
   end
+
+  def new(uri, method) do
+    %__MODULE__{uri: Stow.URI.new(uri), method: method, adapter: impl("http")}
+  end
 end
